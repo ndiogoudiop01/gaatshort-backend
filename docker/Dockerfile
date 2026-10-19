@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ─── Stage 1 : dépendances ────────────────────────────────────────────────
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 RUN corepack enable && apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
@@ -8,7 +8,7 @@ COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 
 # ─── Stage 2 : build ──────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 RUN corepack enable && apk add --no-cache openssl
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -18,7 +18,7 @@ COPY . .
 RUN pnpm db:generate && pnpm build && pnpm build:seed && pnpm prune --prod
 
 # ─── Stage 3 : runtime ────────────────────────────────────────────────────
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 RUN apk add --no-cache openssl tini && addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ENV NODE_ENV=production
