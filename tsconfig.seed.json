@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  // Compile le seed (prisma/seed/*.ts) en JavaScript dans `dist/seed/`.
+  // L'image runtime n'embarque ni ts-node ni typescript (`pnpm prune --prod`) :
+  // sans cette étape, aucun amorçage n'est possible depuis un conteneur
+  // déployé (CapRover). Lancé APRÈS `nest build`, dont `deleteOutDir`
+  // effacerait sinon `dist/seed/`.
+  "compilerOptions": {
+    "rootDir": "prisma/seed",
+    "outDir": "./dist/seed",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["prisma/seed/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

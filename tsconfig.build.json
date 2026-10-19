@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    // `nest-cli.json` a `deleteOutDir: true` : chaque compilation en mode
+    // watch supprime `dist/` AVANT de recompiler. Le cache incrémental
+    // (`tsconfig.json#incremental`) est écrit par défaut à la RACINE du
+    // projet, donc `deleteOutDir` ne l'efface jamais avec `dist/` — tsc le
+    // relit, croit que `dist/main.js` existe déjà (rien n'a changé côté
+    // source) et n'émet plus rien. `nest start --watch` plantait alors
+    // systématiquement au tout premier lancement avec
+    // `Cannot find module '.../dist/main'`. En mettant le cache DANS
+    // `dist/`, il est supprimé en même temps que le reste : tsc réémet tout
+    // à chaque redémarrage du watcher, comme attendu.
+    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo"
+  },
+  // `tsconfig.json` inclut aussi `prisma/**/*` et `scripts/**/*` (pour que
+  // `ts-node` les type-check avec les mêmes alias `@shared/*` etc.), ce qui,
+  // sans ce `include` dédié, faisait remonter le `rootDir` implicite de `tsc`
+  // à la RACINE du projet : `nest build` sortait alors `dist/src/main.js`,
+  // `dist/prisma/...`, `dist/scripts/...` au lieu d'un `dist/` à plat sur
+  // `src/`. `docker/Dockerfile` (`CMD node dist/main.js`), `docker-compose.yml`
+  // et `package.json` (`start:prod`, `start:worker`) attendent tous
+  // `dist/main.js` — l'image ne démarrait donc jamais (`MODULE_NOT_FOUND`).
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "**/tests/**"]
+}

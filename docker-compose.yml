@@ -1,0 +1,80 @@
+name: gaatshort
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gaatshort
+      POSTGRES_PASSWORD: gaatshort
+      POSTGRES_DB: gaatshort
+    ports: ['5432:5432', '5433:5432']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./prisma/sql/00-bootstrap-roles.sql:/docker-entrypoint-initdb.d/00-bootstrap-roles.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gaatshort -d gaatshort']
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports: ['6379:6379', '6380:6379']
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ['1025:1025', '8025:8025']
+
+  migrate:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    command: >
+      sh -c "node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma &&
+             node_modules/.bin/prisma db execute --file prisma/sql/rls-policies.sql --schema prisma/schema.prisma"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://gaatshort:gaatshort@postgres:5432/gaatshort?schema=public&connection_limit=20&pool_timeout=10
+      DATABASE_DIRECT_URL: postgresql://gaatshort:gaatshort@postgres:5432/gaatshort?schema=public
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    command: node dist/main.js
+    env_file: [.env]
+    ports: ['3000:3000']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 3s
+      start_period: 20s
+      retries: 3
+
+  worker:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    command: node dist/worker.main.js
+    env_file: [.env]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    deploy:
+      replicas: 2
+
+volumes:
+  pgdata:
+  redisdata:

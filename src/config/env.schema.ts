@@ -1,0 +1,133 @@
+import { z } from 'zod';
+
+/**
+ * Contrat d'environnement. Validé au démarrage : le process refuse de
+ * booter avec une configuration incomplète — jamais de `undefined` qui
+ * remonte trois heures plus tard en production.
+ */
+const csv = (value: string) => value.split(',').map((v) => v.trim()).filter(Boolean);
+
+/**
+ * `z.coerce.boolean()` appelle `Boolean(valeur)` — pour une chaîne, TOUTE
+ * chaîne non vide est truthy en JS, donc `LOG_PRETTY=false` (la chaîne
+ * `"false"`, ce qu'un fichier `.env` fournit TOUJOURS) devenait `true`.
+ * Six variables utilisaient ce piège (`TENANCY_ALLOW_ANONYMOUS_FALLBACK`,
+ * `DATABASE_LOG_QUERIES`, `STORAGE_FORCE_PATH_STYLE`, `LOG_PRETTY`,
+ * `METRICS_ENABLED`, `OTEL_ENABLED`) — la plus grave étant la première :
+ * un opérateur qui pose `TENANCY_ALLOW_ANONYMOUS_FALLBACK=false` pour
+ * DÉSACTIVER le repli anonyme en production ne désactivait en réalité rien.
+ * Trouvé en testant le déploiement conteneurisé (SIB-55) : le conteneur ne
+ * démarrait pas avec `LOG_PRETTY=false` (tente de charger `pino-pretty`,
+ * absent des dépendances de production).
+ */
+const TRUTHY = ['true', '1', 'yes', 'on'];
+const FALSY = ['false', '0', 'no', 'off'];
+
+const bool = (defaultValue: boolean) =>
+  z.preprocess((value) => {
+    if (typeof value !== 'string') return value;
+    const normalized = value.trim().toLowerCase();
+    // Chaîne vide = non renseignée : `FOO=` dans un `.env` est une absence, pas
+    // une erreur. La valeur par défaut s'applique.
+    if (normalized === '') return undefined;
+    if (TRUTHY.includes(normalized)) return true;
+    if (FALSY.includes(normalized)) return false;
+    // Ni vrai ni faux : on laisse passer la chaîne telle quelle pour que
+    // `z.boolean()` la REFUSE. Une valeur mal saisie (`ture`, `oui`) doit faire
+    // échouer le démarrage, pas basculer en silence sur `false` — c'est
+    // précisément le mode de panne que ce helper existe pour supprimer.
+    return normalized;
+  }, z.boolean().default(defaultValue));
+
+export const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  APP_NAME: z.string().default('gaatshort-api'),
+  APP_PORT: z.coerce.number().int().positive().default(3000),
+  APP_GLOBAL_PREFIX: z.string().default('api'),
+  APP_DEFAULT_API_VERSION: z.string().default('1'),
+  APP_PUBLIC_URL: z.string().url(),
+  // SHA du commit, figé dans l'image au build (docker/Dockerfile, `build:image`).
+  APP_VERSION: z.string().min(1).default('dev'),
+  FRONTEND_URL: z.string().url(),
+  CORS_ORIGINS: z.string().transform(csv),
+
+  TENANCY_STRATEGY: z.enum(['shared_rls', 'schema']).default('shared_rls'),
+  TENANCY_RESOLVERS: z.string().default('jwt,subdomain,header').transform(csv),
+  TENANCY_HEADER_NAME: z.string().default('x-tenant-id'),
+  TENANCY_ROOT_DOMAIN: z.string(),
+  TENANCY_DEFAULT_SLUG: z.string(),
+  TENANCY_CACHE_TTL_SECONDS: z.coerce.number().int().default(300),
+  TENANCY_ALLOW_ANONYMOUS_FALLBACK: bool(true),
+
+  DATABASE_URL: z.string().url(),
+  DATABASE_DIRECT_URL: z.string().url().optional(),
+  DATABASE_READ_REPLICA_URL: z.string().url().or(z.literal('')).optional(),
+  DATABASE_LOG_QUERIES: bool(false),
+  DATABASE_SLOW_QUERY_MS: z.coerce.number().int().default(300),
+
+  REDIS_URL: z.string().url(),
+  REDIS_KEY_PREFIX: z.string().default('gs'),
+  CACHE_DEFAULT_TTL_SECONDS: z.coerce.number().int().default(60),
+
+  JWT_ACCESS_SECRET: z.string().min(32, 'Secret trop court : 32 caractères minimum'),
+  JWT_ACCESS_TTL: z.string().default('900s'),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_REFRESH_TTL: z.string().default('30d'),
+  MAGIC_LINK_TTL_SECONDS: z.coerce.number().int().default(900),
+  OTP_TTL_SECONDS: z.coerce.number().int().default(300),
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().default(5),
+  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+  ARGON2_MEMORY_COST: z.coerce.number().int().default(19456),
+  ARGON2_TIME_COST: z.coerce.number().int().default(2),
+
+  STORAGE_DRIVER: z.enum(['s3', 'local']).default('s3'),
+  STORAGE_ENDPOINT: z.string().optional(),
+  STORAGE_REGION: z.string().default('eu-west-1'),
+  STORAGE_BUCKET: z.string(),
+  STORAGE_ACCESS_KEY: z.string(),
+  STORAGE_SECRET_KEY: z.string(),
+  STORAGE_FORCE_PATH_STYLE: bool(false),
+  STORAGE_PRESIGN_TTL_SECONDS: z.coerce.number().int().default(900),
+  // TTL de l'URL GET de consultation. Distinct et volontairement court :
+  // un lien de téléchargement n'est pas partageable durablement (critère : 15 min).
+  STORAGE_DOWNLOAD_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(900),
+  STORAGE_MAX_FILE_SIZE_MB: z.coerce.number().int().default(15),
+  STORAGE_ALLOWED_MIME: z.string().transform(csv),
+
+  MAIL_DRIVER: z.enum(['smtp', 'ses', 'resend', 'log']).default('log'),
+  MAIL_FROM: z.string(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMS_DRIVER: z.enum(['twilio', 'orange', 'log']).default('log'),
+  SMS_SENDER_ID: z.string().default('GAATSHRT'),
+
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  LOG_PRETTY: bool(false),
+  METRICS_ENABLED: bool(true),
+  OTEL_ENABLED: bool(false),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  SENTRY_DSN: z.string().optional(),
+
+  RATE_LIMIT_TTL_SECONDS: z.coerce.number().int().default(60),
+  RATE_LIMIT_LIMIT: z.coerce.number().int().default(120),
+  RATE_LIMIT_PUBLIC_FORM_LIMIT: z.coerce.number().int().default(5),
+
+  GDPR_RETENTION_APPLICATION_DAYS: z.coerce.number().int().default(730),
+  GDPR_RETENTION_REJECTED_DAYS: z.coerce.number().int().default(365),
+  GDPR_EXPORT_TTL_HOURS: z.coerce.number().int().default(48),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export function validateEnv(raw: Record<string, unknown>): Env {
+  const parsed = envSchema.safeParse(raw);
+  if (!parsed.success) {
+    const details = parsed.error.issues
+      .map((i) => `  • ${i.path.join('.')}: ${i.message}`)
+      .join('\n');
+    throw new Error(`Configuration d'environnement invalide :\n${details}`);
+  }
+  return parsed.data;
+}

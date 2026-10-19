@@ -1,0 +1,130 @@
+# ==============================================================================
+#  Déploiement continu — GHCR → CapRover (même mécanique que le socle)
+#
+#    push sur develop      → staging    (automatique)
+#    tag vX.Y.Z sur main   → production (approbation requise : environnement
+#                                        GitHub « production » avec reviewers)
+#
+#  CapRover ne construit rien : il tire l'image déjà testée, taguée par SHA.
+#    build ─▶ deploy api (migrations + RLS au démarrage) ─▶ smoke (VERSION) ─▶ deploy worker
+#
+#  Configuration attendue, par environnement GitHub (staging, production) :
+#    vars    CAPROVER_URL, CAPROVER_API_APP, CAPROVER_WORKER_APP, API_PUBLIC_URL
+#    secrets CAPROVER_API_APP_TOKEN, CAPROVER_WORKER_APP_TOKEN
+#  Et côté CapRover : Cluster › Docker Registries › ghcr.io avec un jeton
+#  GitHub limité à read:packages. Voir docs/operations/deploiement.md.
+# ==============================================================================
+name: deploy
+
+on:
+  push:
+    branches: [develop]
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: ci
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      version: ${{ steps.meta.outputs.version }}
+      environment: ${{ steps.meta.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA::8}"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${SHORT_SHA}"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then ENVIRONMENT=production; else ENVIRONMENT=staging; fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "version=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          build-args: APP_VERSION=${{ steps.meta.outputs.version }}
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.environment }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Analyse de vulnérabilités de l'image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ needs.build.outputs.environment }}
+      url: ${{ vars.API_PUBLIC_URL }}
+    concurrency:
+      group: deploy-${{ needs.build.outputs.environment }}
+      cancel-in-progress: false
+    env:
+      IMAGE: ${{ needs.build.outputs.image }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global --no-fund --no-audit caprover@2.4.4
+
+      - name: Déployer l'API (migrations + RLS au démarrage)
+        run: |
+          caprover deploy --caproverUrl "${{ vars.CAPROVER_URL }}" \
+            --appToken "${{ secrets.CAPROVER_API_APP_TOKEN }}" \
+            --caproverApp "${{ vars.CAPROVER_API_APP }}" \
+            --imageName "$IMAGE" 2>&1 | tee caprover-api.log
+          if grep -qiE "build has failed|deploy failed|pull access denied|unauthorized" caprover-api.log; then
+            echo "::error::CapRover n'a pas pu déployer $IMAGE (registre ghcr.io configuré dans CapRover ?)"
+            exit 1
+          fi
+
+      - name: Smoke test — la NOUVELLE version répond saine
+        env:
+          API_PUBLIC_URL: ${{ vars.API_PUBLIC_URL }}
+        run: |
+          node -e '
+            const base = process.env.API_PUBLIC_URL, want = process.env.VERSION;
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            const get = (p) => fetch(base + p, { signal: AbortSignal.timeout(5000) })
+              .then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }))
+              .catch((e) => ({ status: e.name, body: {} }));
+            (async () => {
+              for (let i = 1; i <= 30; i++) {
+                const live = await get("/health/live");
+                const ready = live.body.version === want ? await get("/health/ready") : { status: "-" };
+                console.log(`tentative ${i}/30 : version=${live.body.version ?? live.status} (attendue ${want}) ready=${ready.status}`);
+                if (ready.status === 200) process.exit(0);
+                await sleep(10000);
+              }
+              console.error("La version " + want + " ne répond pas saine : Swarm a pu revenir à l ancienne. Voir les logs CapRover.");
+              process.exit(1);
+            })();'
+
+      - name: Déployer le worker (schéma déjà migré par l'API)
+        run: |
+          caprover deploy --caproverUrl "${{ vars.CAPROVER_URL }}" \
+            --appToken "${{ secrets.CAPROVER_WORKER_APP_TOKEN }}" \
+            --caproverApp "${{ vars.CAPROVER_WORKER_APP }}" \
+            --imageName "$IMAGE"

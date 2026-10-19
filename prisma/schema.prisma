@@ -1,0 +1,516 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  GAATSHORT GROUP — Modèle de données
+//
+//  RÈGLES NON NÉGOCIABLES (vérifiées en CI par test/integration/tenant-isolation)
+//  1. Toute table métier porte `tenantId` et une politique RLS Postgres.
+//     EXCEPTION — référentiels globaux, sans `tenantId`, en lecture seule pour
+//     l'application (GRANT SELECT dans rls-policies.sql) : `currencies`,
+//     `countries`, `permissions`, `role_permissions`, et `tenants` (le registre
+//     lui-même). Toute autre table SANS `tenantId` est un bug.
+//  2. Toute contrainte d'unicité métier est préfixée par `tenantId`.
+//  3. Tout index de lecture commence par `tenantId` (sélectivité + RLS friendly).
+//  4. Aucune suppression physique sur les agrégats métier : `deletedAt`.
+//  5. Les enums de workflow vivent ici ET dans le domaine (source de vérité = domaine).
+//  6. Tout champ multi-mots porte `@map("snake_case")` — le SQL brut (RLS) dépend
+//     de cette convention. Tables : `@@map("pluriel_snake")`.
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins", "nativeDistinct"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// TENANCY — racine de l'isolation
+// ───────────────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum TenancyIsolation {
+  SHARED_RLS // colonne tenant_id + Row Level Security (défaut)
+  SCHEMA // schéma Postgres dédié (mode silo)
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AuthChannel {
+  EMAIL_MAGIC_LINK
+  EMAIL_OTP
+  PHONE_OTP
+  PASSWORD
+}
+
+enum DsrType {
+  ACCESS
+  ERASURE
+  RECTIFICATION
+  PORTABILITY
+  OBJECTION
+}
+
+enum DsrStatus {
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REFUSED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  SKIPPED
+}
+
+model Currency {
+  code      String  @id @db.Char(3)
+  symbol    String
+  name      String
+  decimals  Int
+  rateToXOF Decimal @map("rate_to_xof") @db.Decimal(20, 6)
+
+  @@map("currencies")
+}
+
+model Country {
+  code         String  @id @db.Char(2)
+  name         String
+  nameFr       String  @map("name_fr")
+  dialCode     String  @map("dial_code")
+  currencyCode String  @map("currency_code") @db.Char(3)
+  flagEmoji    String  @map("flag_emoji")
+  isActive     Boolean @default(true) @map("is_active")
+
+  @@map("countries")
+}
+
+model Tenant {
+  id              String           @id @default(uuid()) @db.Uuid
+  slug            String           @unique
+  name            String
+  legalName       String?          @map("legal_name")
+  status          TenantStatus     @default(ACTIVE)
+  isolation       TenancyIsolation @default(SHARED_RLS)
+  schemaName      String?          @unique @map("schema_name") // renseigné si isolation = SCHEMA
+  defaultLocale   String           @default("fr") @map("default_locale")
+  defaultCountry  String           @default("SN") @map("default_country") @db.Char(2)
+  defaultCurrency String           @default("XOF") @map("default_currency") @db.Char(3)
+  timezone        String           @default("Africa/Dakar")
+  branding        Json             @default("{}")
+  featureFlags    Json             @default("{}") @map("feature_flags")
+  settings        Json             @default("{}")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+
+  domains TenantDomain[]
+  users   User[]
+
+  @@index([status])
+  @@map("tenants")
+}
+
+model TenantDomain {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  domain     String    @unique // ex: kaay.gaatshort.com
+  isPrimary  Boolean   @default(false) @map("is_primary")
+  verifiedAt DateTime? @map("verified_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tenant_domains")
+}
+
+/// US-IG-029 — pays ACTIVÉS par un tenant. Les 250 pays du monde vivent dans
+/// le référentiel global `countries` (hors RLS) ; seule l'activation est scopée.
+model TenantCountry {
+  tenantId    String  @map("tenant_id") @db.Uuid
+  countryCode String  @map("country_code") @db.Char(2)
+  isDefault   Boolean @default(false) @map("is_default")
+  isActive    Boolean @default(true) @map("is_active")
+
+  @@id([tenantId, countryCode])
+  @@map("tenant_countries")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// IAM — utilisateurs, rôles, permissions, sessions   (US-IG-007)
+// ───────────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  tenantId        String     @map("tenant_id") @db.Uuid
+  email           String?
+  phoneE164       String?    @map("phone_e164")
+  passwordHash    String?    @map("password_hash")
+  firstName       String?    @map("first_name")
+  lastName        String?    @map("last_name")
+  status          UserStatus @default(PENDING)
+  locale          String     @default("fr")
+  countryCode     String?    @map("country_code") @db.Char(2)
+  /// BSG-12 — périmètre pays. `true` : tous les pays du tenant. Sinon, le
+  /// pays de rattachement (`countryCode`) + `countryScope`. Seul un
+  /// SUPER_ADMIN peut élargir l'un ou l'autre.
+  allCountries    Boolean    @default(false) @map("all_countries")
+  /// BSG-12 — pays SUPPLÉMENTAIRES accordés par un SUPER_ADMIN.
+  countryScope    String[]   @default([]) @map("country_scope")
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  phoneVerifiedAt DateTime?  @map("phone_verified_at")
+  lastLoginAt     DateTime?  @map("last_login_at")
+  mfaEnabled      Boolean    @default(false) @map("mfa_enabled")
+  metadata        Json       @default("{}")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles        UserRole[]
+  sessions     AuthSession[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, phoneE164])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String?  @map("tenant_id") @db.Uuid // null = rôle système partagé
+  key         String // CANDIDATE, PARTNER, MANAGER, ADMIN, SUPER_ADMIN
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  /// BSG-12 — dernière modification (libellé ou permissions).
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+// `permissions` et `role_permissions` sont des RÉFÉRENTIELS GLOBAUX, pas des
+// tables métier : pas de `tenantId`, pas de RLS (cf. règle 1 en tête de fichier).
+// Le catalogue de permissions est figé et identique pour tous les tenants ; le
+// câblage rôle→permission des rôles système l'est aussi. Les rôles propres à un
+// tenant (`roles.tenant_id` non nul) partagent ce même catalogue. Une ligne de
+// `role_permissions` n'est atteignable que via un `role_id` — lui protégé par
+// RLS — et disparaît en cascade avec le rôle. Rendre cette table tenant-scoped
+// serait de la défense en profondeur, au prix d'une clé composite à 3 colonnes
+// et d'un référentiel dupliqué par tenant ; décision : on ne le fait pas.
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique // ex: application:read, application:transition
+  resource    String
+  action      String
+  description String?
+
+  roles RolePermission[]
+
+  @@index([resource])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  grantedAt DateTime @default(now()) @map("granted_at")
+  grantedBy String?  @map("granted_by") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([tenantId, roleId])
+  @@map("user_roles")
+}
+
+model AuthSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  familyId         String    @map("family_id") @db.Uuid // rotation des refresh tokens
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipHash           String?   @map("ip_hash")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  replacedById     String?   @map("replaced_by_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthChallenge {
+  id          String      @id @default(uuid()) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  channel     AuthChannel
+  identifier  String // email ou +221XXXXXXXXX
+  secretHash  String      @map("secret_hash")
+  purpose     String // login | verify_email | verify_phone
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(5) @map("max_attempts")
+  expiresAt   DateTime    @map("expires_at")
+  consumedAt  DateTime?   @map("consumed_at")
+  ipHash      String?     @map("ip_hash")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([tenantId, identifier, purpose])
+  @@index([expiresAt])
+  @@map("auth_challenges")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  actorId       String?  @map("actor_id") @db.Uuid
+  actorType     String   @default("USER") @map("actor_type") // USER | SYSTEM | JOB
+  action        String // application.status_changed
+  resourceType  String   @map("resource_type")
+  resourceId    String?  @map("resource_id")
+  before        Json?
+  after         Json?
+  ipHash        String?  @map("ip_hash")
+  userAgent     String?  @map("user_agent")
+  correlationId String?  @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, resourceType, resourceId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, actorId])
+  @@map("audit_logs")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// SIMULATION   (US-IG-005 / US-IG-027)
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Barème financier versionné : on ne modifie JAMAIS une version publiée,
+/// sinon les simulations passées deviennent irreproductibles.
+model ConsentDefinition {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  key        String // personal_data_processing | partner_sharing | marketing
+  version    Int      @default(1)
+  label      String
+  purpose    String
+  isRequired Boolean  @default(false) @map("is_required")
+  policyUrl  String?  @map("policy_url")
+  locale     String   @default("fr")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  records ConsentRecord[]
+
+  @@unique([tenantId, key, version, locale])
+  @@index([tenantId, isActive])
+  @@map("consent_definitions")
+}
+
+/// Journal immuable : on n'UPDATE jamais un consentement, on en écrit un nouveau.
+model ConsentRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  definitionId   String   @map("definition_id") @db.Uuid
+  subjectType    String   @map("subject_type") // USER | APPLICATION | SUBSCRIBER | PARTNER_LEAD
+  subjectId      String   @map("subject_id")
+  consentKey     String   @map("consent_key")
+  consentVersion Int      @map("consent_version")
+  granted        Boolean
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+  ipHash         String?  @map("ip_hash")
+  userAgent      String?  @map("user_agent")
+  evidence       Json     @default("{}") // copie du libellé affiché au moment du clic
+
+  definition ConsentDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, subjectType, subjectId])
+  @@index([tenantId, consentKey, occurredAt(sort: Desc)])
+  @@map("consent_records")
+}
+
+model DataSubjectRequest {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  type           DsrType
+  status         DsrStatus @default(RECEIVED)
+  requesterEmail String    @map("requester_email")
+  subjectUserId  String?   @map("subject_user_id") @db.Uuid
+  handledById    String?   @map("handled_by_id") @db.Uuid
+  dueAt          DateTime  @map("due_at")
+  resolutionNote String?   @map("resolution_note")
+  exportFileId   String?   @map("export_file_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  completedAt    DateTime? @map("completed_at")
+
+  @@index([tenantId, status, dueAt])
+  @@map("data_subject_requests")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// ANALYTICS   (US-IG-022)
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Table chaude : partitionnée par mois (voir prisma/sql/partitions.sql),
+/// écriture asynchrone via la file `analytics`, jamais dans le chemin critique.
+model AnalyticsEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String // page_view | simulation_completed | application_submitted
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+  sessionId   String?  @map("session_id")
+  userId      String?  @map("user_id") @db.Uuid
+  countryCode String?  @map("country_code") @db.Char(2)
+  properties  Json     @default("{}")
+
+  @@index([tenantId, name, occurredAt(sort: Desc)])
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@map("analytics_events")
+}
+
+/// Agrégats pré-calculés qui alimentent le dashboard admin en O(1).
+model MetricSnapshot {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  key         String // applications.submitted | pool.size | partners.by_stage
+  granularity String // hour | day | month
+  bucketAt    DateTime @map("bucket_at")
+  dimensions  Json     @default("{}")
+  value       Decimal  @db.Decimal(20, 4)
+  computedAt  DateTime @default(now()) @map("computed_at")
+
+  @@unique([tenantId, key, granularity, bucketAt, dimensions])
+  @@index([tenantId, key, bucketAt(sort: Desc)])
+  @@map("metric_snapshots")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// ───────────────────────────────────────────────────────────────────────────
+
+model NotificationTemplate {
+  id        String              @id @default(uuid()) @db.Uuid
+  tenantId  String              @map("tenant_id") @db.Uuid
+  key       String // application.preselected
+  channel   NotificationChannel
+  locale    String              @default("fr")
+  subject   String?
+  body      String
+  isActive  Boolean             @default(true) @map("is_active")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  @@unique([tenantId, key, channel, locale])
+  @@index([tenantId])
+  @@map("notification_templates")
+}
+
+model Notification {
+  id          String              @id @default(uuid()) @db.Uuid
+  tenantId    String              @map("tenant_id") @db.Uuid
+  userId      String?             @map("user_id") @db.Uuid
+  recipient   String
+  channel     NotificationChannel
+  templateKey String              @map("template_key")
+  locale      String              @default("fr")
+  payload     Json                @default("{}")
+  status      NotificationStatus  @default(QUEUED)
+  providerId  String?             @map("provider_id")
+  attempts    Int                 @default(0)
+  error       String?
+  sentAt      DateTime?           @map("sent_at")
+  readAt      DateTime?           @map("read_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  @@index([tenantId, userId, createdAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@map("notifications")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// PLATEFORME — outbox transactionnel & idempotence
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Outbox pattern : l'événement est écrit dans la MÊME transaction que le
+/// changement d'état. Un relais le publie ensuite sur BullMQ. Zéro événement perdu.
+model OutboxMessage {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  aggregateType String    @map("aggregate_type")
+  aggregateId   String    @map("aggregate_id")
+  eventName     String    @map("event_name")
+  payload       Json
+  metadata      Json      @default("{}") // correlationId, causationId, actorId
+  occurredAt    DateTime  @default(now()) @map("occurred_at")
+  processedAt   DateTime? @map("processed_at")
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error")
+
+  @@index([processedAt, occurredAt])
+  @@index([tenantId, aggregateType, aggregateId])
+  @@map("outbox_messages")
+}
+
+/// Rejoue la réponse d'origine sur retry réseau : indispensable sur
+/// POST /applications et POST /partners/leads (double soumission mobile).
+model IdempotencyKey {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  key            String
+  endpoint       String
+  requestHash    String    @map("request_hash")
+  responseStatus Int?      @map("response_status")
+  responseBody   Json?     @map("response_body")
+  lockedAt       DateTime  @default(now()) @map("locked_at")
+  completedAt    DateTime? @map("completed_at")
+  expiresAt      DateTime  @map("expires_at")
+
+  @@unique([tenantId, key, endpoint])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

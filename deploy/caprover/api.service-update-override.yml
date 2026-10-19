@@ -1,0 +1,35 @@
+# ==============================================================================
+#  CapRover > Apps > gaatshort-api > App Configs > « Service Update Override »
+#  (fusionné dans la spec du service Docker Swarm — durées en NANOSECONDES).
+#
+#  - Healthcheck : la sonde décrit le SERVICE, pas l'image (cf. docker/Dockerfile).
+#    URL `/health/live` (hors préfixe /api). StartPeriod large : au démarrage,
+#    l'entrypoint applique migrations + RLS AVANT de lancer l'API.
+#  - StopGracePeriod 35 s : Swarm envoie SIGTERM puis SIGKILL après 10 s par
+#    défaut — or l'arrêt propre se donne jusqu'à 30 s (graceful-shutdown.ts).
+#  - start-first + rollback : la nouvelle tâche doit être SAINE avant que
+#    l'ancienne soit arrêtée ; sinon Swarm revient à la version précédente.
+#    Zéro coupure dès 1 réplica, sous réserve de migrations rétro-compatibles
+#    (expand / contract : l'ancienne version tourne sur le nouveau schéma).
+# ==============================================================================
+TaskTemplate:
+  ContainerSpec:
+    StopGracePeriod: 35000000000
+    Healthcheck:
+      Test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      Interval: 15000000000
+      Timeout: 3000000000
+      StartPeriod: 120000000000
+      Retries: 3
+UpdateConfig:
+  Parallelism: 1
+  Order: start-first
+  FailureAction: rollback
+  Monitor: 30000000000
+RollbackConfig:
+  Parallelism: 1
+  Order: start-first

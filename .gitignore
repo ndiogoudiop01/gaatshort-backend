@@ -1,0 +1,31 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea/
+*.tsbuildinfo
+prisma/generated/
+uploads/
+docker-compose.override.yml
+
+# Backlog Jira : outil interne, hors dépôt applicatif
+jira/
+
+# CI : rapports de test (JUnit / cobertura), store pnpm
+reports/
+.pnpm-store/
+# jest-junit écrit ici par défaut si JEST_JUNIT_OUTPUT_DIR n'est pas positionné
+# (donc en local, contrairement à la CI — cf. .gitlab-ci.yml) : `pnpm test:ci`
+# lancé sans cette variable a laissé traîner ce fichier pendant l'audit SIB-54.
+junit.xml
+
+# pnpm est le seul gestionnaire de paquets du projet
+package-lock.json
+yarn.lock
+
+# Configuration locale d'outils d'assistance
+.claude/

@@ -1,0 +1,134 @@
+# ==============================================================================
+#  CI — barrière qualité (portage du pipeline GitLab du socle)
+#
+#  Déclenchement : chaque pull request, chaque push sur main, et en amont de
+#  chaque déploiement (appelé par deploy.yml pour develop et les tags).
+#  Toutes les étapes sont BLOQUANTES : une PR ne se fusionne que si tout est vert
+#  (règle de protection de branche « Require status checks »).
+#
+#    quality      lint · règles d'architecture · types · build
+#    unit         tests unitaires + seuils de couverture
+#    integration  isolation multi-tenant (RLS), outbox, cache, notifications
+#                 — Postgres et Redis réels via Testcontainers
+#    openapi      le contrat openapi.json committé correspond au code
+# ==============================================================================
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm lint:ci
+      - run: pnpm depcruise
+      - run: pnpm exec tsc --noEmit -p tsconfig.json
+      - run: pnpm build
+      - name: Audit des dépendances (vulnérabilités hautes et critiques)
+        run: pnpm audit --prod --audit-level high
+
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm test:ci
+        env:
+          JEST_JUNIT_OUTPUT_DIR: reports
+          JEST_JUNIT_OUTPUT_NAME: unit.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-reports
+          path: |
+            reports/
+            coverage/cobertura-coverage.xml
+          retention-days: 7
+
+  integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      # Docker est natif sur les runners ubuntu : Testcontainers l'utilise directement.
+      - run: pnpm test:integration:ci
+        env:
+          JEST_JUNIT_OUTPUT_DIR: reports
+          JEST_JUNIT_OUTPUT_NAME: integration.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-reports
+          path: reports/
+          retention-days: 7
+
+  openapi:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gaatshort
+          POSTGRES_PASSWORD: gaatshort
+          POSTGRES_DB: gaatshort
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gaatshort -d gaatshort"
+          --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: cp .env.example .env
+      - run: pnpm prisma db execute --file prisma/sql/00-bootstrap-roles.sql --schema prisma/schema.prisma
+      - run: pnpm prisma migrate deploy
+      - run: pnpm db:rls
+      - run: pnpm openapi:diff
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: openapi-attendu
+          path: openapi.json
+          retention-days: 7

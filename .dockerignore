@@ -1,0 +1,35 @@
+# Contexte de build minimal : tout ce qui n'est pas nécessaire à
+# `pnpm install` + `pnpm db:generate` + `pnpm build` est exclu.
+node_modules
+dist
+coverage
+reports
+.pnpm-store
+
+# VCS / CI / IDE
+.git
+.gitignore
+.gitattributes
+.github
+.gitlab-ci.yml
+.idea
+.vscode
+.claude
+.editorconfig
+.nvmrc
+
+# Tests et docs — jamais embarqués dans l'image runtime
+test
+docs
+**/*.spec.ts
+
+# Cibles de déploiement (compose prod, init SQL) — vivent sur la VM, pas dans l'image
+deploy
+
+# Secrets et divers
+.env
+.env.*
+!.env.example
+*.md
+Makefile
+docker-compose.yml

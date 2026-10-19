@@ -1,0 +1,18 @@
+# ==============================================================================
+#  CapRover > Apps > gaatshort-worker > App Configs > « Service Update Override »
+#
+#  - Pas de healthcheck : le worker n'ouvre aucun port (createApplicationContext).
+#    Sa supervision = code de sortie + reprise des jobs par BullMQ.
+#  - StopGracePeriod 35 s : laisse `Worker.close()` drainer les jobs actifs.
+#  - stop-first : l'ancien worker draine et s'arrête avant que le nouveau
+#    démarre (les jobs sont de toute façon idempotents — livraison « au moins
+#    une fois », cf. docs/00-overview.md).
+# ==============================================================================
+TaskTemplate:
+  ContainerSpec:
+    StopGracePeriod: 35000000000
+UpdateConfig:
+  Parallelism: 1
+  Order: stop-first
+  FailureAction: rollback
+  Monitor: 30000000000

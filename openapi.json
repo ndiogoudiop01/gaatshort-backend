@@ -1,0 +1,1709 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Système"
+        ]
+      }
+    },
+    "/api/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The Health Check is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {},
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Health Check is not successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        },
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Système"
+        ]
+      }
+    },
+    "/api/auth/challenge": {
+      "post": {
+        "operationId": "AuthController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestChallengeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Demander un lien magique ou un code OTP (US-IG-007)",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/auth/verify": {
+      "post": {
+        "operationId": "AuthController_verify",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyChallengeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Valider le code et ouvrir la session",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Connexion du back-office par e-mail et mot de passe",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rafraîchir la session (rotation du refresh token)",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Fermer la session courante",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Profil, rôles et permissions de l’utilisateur connecté",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "operationId": "AdminUsersController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Champ de tri",
+            "schema": {
+              "default": "createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "lastLoginAt",
+                "email",
+                "lastName"
+              ]
+            }
+          },
+          {
+            "name": "sortDir",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "roles",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": [
+                "ADMIN",
+                "MANAGER"
+              ],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "ACTIVE",
+                  "SUSPENDED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "E-mail, prénom, nom ou téléphone (contient)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "countryCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "SN",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Comptes — offset (perPage ≤ 100), tri whitelisté, limités au périmètre pays de l’appelant",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      },
+      "post": {
+        "operationId": "AdminUsersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer un compte (sans mot de passe : connexion par lien ou code)",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/users/countries": {
+      "get": {
+        "operationId": "AdminUsersController_countries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Pays du tenant (rattachement et périmètre)",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/users/{id}": {
+      "get": {
+        "operationId": "AdminUsersController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Compte : rôles, permissions effectives (calculées par l’API), périmètre, sessions actives",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminUsersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier le profil (nom, téléphone, pays de rattachement)",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/users/{id}/roles": {
+      "put": {
+        "description": "422 SELF_LOCKOUT (se retirer user:manage), ROLE_NOT_GRANTABLE (rôle plus puissant que soi), LAST_SUPER_ADMIN.",
+        "operationId": "AdminUsersController_roles",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserRolesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remplacer les rôles — effet au PROCHAIN jeton",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/users/{id}/status": {
+      "patch": {
+        "operationId": "AdminUsersController_status",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Activer ou suspendre (la suspension révoque toutes les sessions)",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/users/{id}/countries": {
+      "put": {
+        "operationId": "AdminUsersController_countriesOf",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserCountriesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Périmètre pays — SUPER_ADMIN uniquement (403 sinon)",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/users/{id}/sessions/revoke": {
+      "post": {
+        "operationId": "AdminUsersController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Déconnecter partout — applique immédiatement un changement de droits",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/roles": {
+      "get": {
+        "operationId": "AdminRolesController_roles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Rôles du tenant avec leurs permissions, nb de comptes, `locked`, `assignable`",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      },
+      "post": {
+        "operationId": "AdminRolesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer un profil personnalisé (éventuellement copié d’un autre)",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/permissions": {
+      "get": {
+        "operationId": "AdminRolesController_permissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Catalogue des permissions vérifiées par l’API ; `grantable` = l’appelant la possède",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/roles/{id}": {
+      "patch": {
+        "operationId": "AdminRolesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Renommer / décrire un profil",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminRolesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Supprimer un profil personnalisé sans compte rattaché",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/roles/{id}/permissions": {
+      "put": {
+        "description": "422 ROLE_LOCKED (SUPER_ADMIN), PERMISSION_NOT_GRANTABLE (anti-escalade), SELF_LOCKOUT.",
+        "operationId": "AdminRolesController_setPermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRolePermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remplacer les permissions d’un profil — effet au PROCHAIN jeton des comptes concernés",
+        "tags": [
+          "Back-office — Utilisateurs"
+        ]
+      }
+    },
+    "/api/admin/tenants/current": {
+      "get": {
+        "operationId": "TenantsController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Contexte du tenant courant (branding, options, devise)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      }
+    },
+    "/api/admin/tenants/reference": {
+      "get": {
+        "operationId": "TenantsController_reference",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Pays actifs et devises : valeurs acceptées pour un tenant (BSG-13)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      }
+    },
+    "/api/admin/tenants": {
+      "get": {
+        "operationId": "TenantsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Champ de tri",
+            "schema": {
+              "default": "name",
+              "type": "string",
+              "enum": [
+                "name",
+                "slug",
+                "status",
+                "createdAt",
+                "updatedAt"
+              ]
+            }
+          },
+          {
+            "name": "sortDir",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "SUSPENDED",
+                  "ARCHIVED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Nom, raison sociale ou slug (contient)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Lister les tenants — offset (perPage ≤ 100), tri whitelisté (BSG-13)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      },
+      "post": {
+        "description": "Slug immuable (sous-domaine). Devise et fuseau déduits du pays s’ils sont omis. 422 TENANT_SLUG_TAKEN : slug déjà utilisé. 422 TENANT_INVALID : slug réservé ou mal formé, pays inactif, devise inconnue, fuseau manquant ou invalide.",
+        "operationId": "TenantsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer une organisation (un pays = un tenant)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      }
+    },
+    "/api/admin/tenants/{id}/deletion-check": {
+      "get": {
+        "description": "Lecture seule. `deletable` est faux pour l’organisation de la session ou dès qu’une table métier contient une ligne.",
+        "operationId": "TenantsController_deletionCheck",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "L’organisation peut-elle être supprimée ? (tables qui la bloquent)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      }
+    },
+    "/api/admin/tenants/{id}": {
+      "get": {
+        "operationId": "TenantsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Un tenant (domaines, options, nombre de comptes)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      },
+      "patch": {
+        "description": "Champs acceptés : name, legalName, status, defaultLocale, defaultCountry, defaultCurrency, timezone, branding { primaryColor, logoUrl }, featureFlags { clé: booléen }. Tout autre champ → 400. 422 TENANT_SELF_LOCKOUT : suspendre ou archiver l’organisation de sa propre session.",
+        "operationId": "TenantsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier un tenant — DTO validé, liste blanche (BSG-13)",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      },
+      "delete": {
+        "description": "`confirm` doit recopier le slug. 422 TENANT_HAS_DATA : des données existent (tables listées) — archiver via PATCH { status: \"ARCHIVED\" }. 422 TENANT_SELF_DELETE : organisation de la session. 422 TENANT_DELETE_CONFIRMATION : confirmation absente ou différente du slug.",
+        "operationId": "TenantsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "confirm",
+            "required": true,
+            "in": "query",
+            "description": "Recopier le slug de l’organisation à supprimer",
+            "schema": {
+              "example": "kaay-cote-ivoire",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Supprimer DÉFINITIVEMENT une organisation sans données",
+        "tags": [
+          "Back-office — Pilotage"
+        ]
+      }
+    },
+    "/api/localization/countries": {
+      "get": {
+        "operationId": "LocalizationController_countries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Pays activés, indicatifs téléphoniques et devises",
+        "tags": [
+          "Public — Contenu"
+        ]
+      }
+    },
+    "/api/localization/currencies": {
+      "get": {
+        "operationId": "LocalizationController_currencies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Devises supportées (FCFA, EUR, MAD…)",
+        "tags": [
+          "Public — Contenu"
+        ]
+      }
+    },
+    "/api/localization/context": {
+      "get": {
+        "operationId": "LocalizationController_context",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Contexte par défaut du tenant courant",
+        "tags": [
+          "Public — Contenu"
+        ]
+      }
+    },
+    "/api/consents/definitions": {
+      "get": {
+        "operationId": "ConsentsController_definitions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Libellés et versions des consentements à afficher",
+        "tags": [
+          "Compte"
+        ]
+      }
+    },
+    "/api/consents": {
+      "post": {
+        "operationId": "ConsentsController_record",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordConsentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Enregistrer les consentements de l’utilisateur",
+        "tags": [
+          "Compte"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Gaatshort — API",
+    "description": "",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "RequestChallengeDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "EMAIL_MAGIC_LINK",
+              "EMAIL_OTP",
+              "PHONE_OTP"
+            ]
+          },
+          "identifier": {
+            "type": "string",
+            "description": "E-mail ou téléphone au format E.164",
+            "example": "+221771234567"
+          }
+        },
+        "required": [
+          "channel",
+          "identifier"
+        ]
+      },
+      "VerifyChallengeDto": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string",
+            "description": "Code OTP ou jeton du lien magique"
+          }
+        },
+        "required": [
+          "identifier",
+          "secret"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "admin@gaatshort.com"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "Object": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 80
+          },
+          "phoneE164": {
+            "type": "object",
+            "nullable": true,
+            "example": "+221771234567"
+          },
+          "countryCode": {
+            "type": "object",
+            "nullable": true,
+            "example": "SN",
+            "description": "Pays de rattachement"
+          },
+          "email": {
+            "type": "string",
+            "example": "awa.diop@gaatshort.com"
+          },
+          "roleKeys": {
+            "example": [
+              "MANAGER"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "email",
+          "roleKeys"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 80
+          },
+          "phoneE164": {
+            "type": "object",
+            "nullable": true,
+            "example": "+221771234567"
+          },
+          "countryCode": {
+            "type": "object",
+            "nullable": true,
+            "example": "SN",
+            "description": "Pays de rattachement"
+          }
+        }
+      },
+      "SetUserRolesDto": {
+        "type": "object",
+        "properties": {
+          "roleKeys": {
+            "example": [
+              "MANAGER"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "roleKeys"
+        ]
+      },
+      "SetUserStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "SetUserCountriesDto": {
+        "type": "object",
+        "properties": {
+          "allCountries": {
+            "type": "boolean",
+            "description": "`true` : tous les pays du tenant"
+          },
+          "countryScope": {
+            "example": [
+              "MA"
+            ],
+            "description": "Pays accordés EN PLUS du pays de rattachement",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "allCountries",
+          "countryScope"
+        ]
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "REGIONAL_MANAGER",
+            "description": "Majuscules, chiffres et _ (3 à 40)"
+          },
+          "name": {
+            "type": "string",
+            "example": "Gestionnaire régional"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "copyFrom": {
+            "type": "string",
+            "example": "MANAGER",
+            "description": "Rôle dont copier les permissions"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SetRolePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "permissionKeys": {
+            "example": [
+              "pool:read",
+              "partner:read"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "permissionKeys"
+        ]
+      },
+      "TenantBrandingDto": {
+        "type": "object",
+        "properties": {
+          "primaryColor": {
+            "type": "object",
+            "nullable": true,
+            "example": "#0F5132"
+          },
+          "logoUrl": {
+            "type": "object",
+            "nullable": true,
+            "example": "https://cdn.exemple.org/logo.svg"
+          }
+        }
+      },
+      "CreateTenantDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "example": "kaay-cote-ivoire",
+            "description": "Sous-domaine, immuable : 3–63 caractères a-z, 0-9, tiret"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120,
+            "example": "Gaatshort Côte d’Ivoire"
+          },
+          "legalName": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED"
+            ],
+            "default": "ACTIVE",
+            "description": "SUSPENDED : préparer l’organisation avant ouverture"
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "fr",
+            "default": "fr"
+          },
+          "defaultCountry": {
+            "type": "string",
+            "example": "CI",
+            "description": "Pays actif du référentiel"
+          },
+          "defaultCurrency": {
+            "type": "string",
+            "example": "XOF",
+            "description": "Par défaut : la devise du pays"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Africa/Abidjan",
+            "description": "Par défaut : le fuseau connu du pays"
+          },
+          "countries": {
+            "example": [
+              "CI",
+              "BF"
+            ],
+            "description": "Pays rattachés en plus du pays par défaut",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "branding": {
+            "$ref": "#/components/schemas/TenantBrandingDto"
+          },
+          "featureFlags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "example": {
+              "simulator": true,
+              "academy": false
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "defaultCountry"
+        ]
+      },
+      "UpdateTenantDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "legalName": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "ARCHIVED"
+            ],
+            "description": "SUSPENDED / ARCHIVED coupent l’accès IMMÉDIATEMENT"
+          },
+          "defaultLocale": {
+            "type": "string",
+            "example": "fr"
+          },
+          "defaultCountry": {
+            "type": "string",
+            "example": "SN"
+          },
+          "defaultCurrency": {
+            "type": "string",
+            "example": "XOF"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Africa/Dakar"
+          },
+          "branding": {
+            "$ref": "#/components/schemas/TenantBrandingDto"
+          },
+          "featureFlags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "example": {
+              "simulator": true
+            }
+          }
+        }
+      },
+      "ConsentEntryDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "personal_data_processing"
+          },
+          "granted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "granted"
+        ]
+      },
+      "RecordConsentsDto": {
+        "type": "object",
+        "properties": {
+          "consents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConsentEntryDto"
+            }
+          }
+        },
+        "required": [
+          "consents"
+        ]
+      }
+    }
+  }
+}
