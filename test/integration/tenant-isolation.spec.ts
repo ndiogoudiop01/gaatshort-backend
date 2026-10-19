@@ -74,7 +74,9 @@ describe('Isolation multi-tenant (RLS Postgres)', () => {
   it('ne renvoie que les lignes du tenant positionné en session', async () => {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantA}::text, TRUE)`;
-      const rows = await tx.$queryRaw<{ id: string; tenant_id: string }[]>`SELECT id, tenant_id FROM users`;
+      const rows = await tx.$queryRaw<
+        { id: string; tenant_id: string }[]
+      >`SELECT id, tenant_id FROM users`;
       expect(rows.length).toBeGreaterThan(0);
       expect(rows.every((r) => r.tenant_id === tenantA)).toBe(true);
     });
@@ -130,10 +132,13 @@ describe('Isolation multi-tenant (RLS Postgres)', () => {
   it('le registre `tenants` est lisible mais NON modifiable hors `$privileged`', async () => {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantA}::text, TRUE)`;
-      const visible = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM tenants WHERE id = ${tenantB}::uuid`;
+      const visible = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT id FROM tenants WHERE id = ${tenantB}::uuid`;
       // Lecture libre : l'annuaire résout le tenant AVANT tout contexte.
       expect(visible).toHaveLength(1);
-      const updated = await tx.$executeRaw`UPDATE tenants SET name = 'Piraté' WHERE id = ${tenantB}::uuid`;
+      const updated =
+        await tx.$executeRaw`UPDATE tenants SET name = 'Piraté' WHERE id = ${tenantB}::uuid`;
       const deleted = await tx.$executeRaw`DELETE FROM tenants WHERE id = ${tenantB}::uuid`;
       expect(updated).toBe(0);
       expect(deleted).toBe(0);
@@ -148,7 +153,9 @@ describe('Isolation multi-tenant (RLS Postgres)', () => {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', TRUE)`;
       await tx.$executeRaw`INSERT INTO tenants (id, slug, name, updated_at) VALUES (${id}::uuid, ${`p-${id.slice(0, 8)}`}, 'Créé', NOW())`;
-      expect(await tx.$executeRaw`UPDATE tenants SET name = 'Renommé' WHERE id = ${id}::uuid`).toBe(1);
+      expect(await tx.$executeRaw`UPDATE tenants SET name = 'Renommé' WHERE id = ${id}::uuid`).toBe(
+        1,
+      );
       expect(await tx.$executeRaw`DELETE FROM tenants WHERE id = ${id}::uuid`).toBe(1);
     });
   });
@@ -193,12 +200,19 @@ describe('Isolation multi-tenant (RLS Postgres)', () => {
     expect(gaps).toEqual([]);
   });
 
-  it('la policy tenant_isolation couvre l’ensemble des tables métier (≥ 40)', async () => {
-    const rows = await owner.$queryRaw<{ count: bigint }[]>`
-      SELECT count(*) AS count
-      FROM pg_policies
-      WHERE schemaname = 'public' AND policyname = 'tenant_isolation'
+  // Le socle comptait ≥ 40 tables métier (SOOBA) ; Gaatshort en a moins et le nombre grandira à
+  // chaque phase. On vérifie donc l'égalité « une policy par table portant tenant_id » et qu'elle
+  // n'est pas vide, plutôt qu'un seuil codé en dur.
+  it('la policy tenant_isolation existe pour chaque table métier, et seulement pour elles', async () => {
+    const [row] = await owner.$queryRaw<{ policies: bigint; tables: bigint }[]>`
+      SELECT
+        (SELECT count(*) FROM pg_policies
+          WHERE schemaname = 'public' AND policyname = 'tenant_isolation') AS policies,
+        (SELECT count(DISTINCT table_name) FROM information_schema.columns
+          WHERE table_schema = 'public' AND column_name = 'tenant_id'
+            AND table_name IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')) AS tables
     `;
-    expect(Number(rows[0].count)).toBeGreaterThanOrEqual(40);
+    expect(Number(row.tables)).toBeGreaterThan(0);
+    expect(Number(row.policies)).toBe(Number(row.tables));
   });
 });
