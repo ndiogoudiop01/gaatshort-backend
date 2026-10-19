@@ -85,10 +85,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       # Docker est natif sur les runners ubuntu : Testcontainers l'utilise directement.
-      - run: pnpm test:integration:ci
+      - run: pnpm test:integration:ci 2>&1 | tee integration.log; exit ${PIPESTATUS[0]}
+        shell: bash
         env:
           JEST_JUNIT_OUTPUT_DIR: reports
           JEST_JUNIT_OUTPUT_NAME: integration.xml
+      # Rend les échecs lisibles dans le résumé du run (annotations), sans télécharger de journal.
+      - name: Résumé des échecs
+        if: failure()
+        shell: bash
+        run: |
+          grep -nE '●|FAIL |Error|error TS|Cannot|ECONN|Timeout' integration.log | head -40 \
+            | while IFS= read -r line; do echo "::error title=integration::${line:0:900}"; done
+          tail -60 integration.log >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
