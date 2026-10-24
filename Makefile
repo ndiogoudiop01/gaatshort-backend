@@ -8,7 +8,7 @@ install: ## Installe les dépendances
 	pnpm install
 
 up: ## Démarre l'infrastructure locale (pg, redis, minio, mailpit)
-	docker compose up -d postgres redis minio mailpit
+	docker compose up -d postgres redis  mailpit
 
 down: ## Arrête l'infrastructure locale
 	docker compose down

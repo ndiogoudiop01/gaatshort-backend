@@ -1,3 +1,15 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+/**
+ * `ts-node prisma/seed/index.ts` ne passe pas par Nest : sans ceci, le `.env`
+ * n'était pas chargé et `SEED_ADMIN_EMAIL` retombait sur
+ * `admin@gaatshort.local` — d'où un 401 en se connectant avec l'adresse du
+ * `.env`. Les variables déjà définies dans le shell restent prioritaires.
+ */
+const envFile = resolve(__dirname, '../../.env');
+if (existsSync(envFile)) process.loadEnvFile(envFile);
+
 const { PrismaClient } = require('@prisma/client');
 import { seedAdminUser } from './admin-user.seed';
 import { seedPermissions } from './permissions.seed';
