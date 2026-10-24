@@ -36,6 +36,12 @@ export function setupSwagger(app: INestApplication, config: AppConfigService): v
       .addTag('Compte', 'Authentification OTP, profil et consentements')
       .addTag('Back-office — Utilisateurs', 'Comptes, rôles et périmètres')
       .addTag('Back-office — Pilotage', 'Administration des marques (tenants)')
+      .addTag('App — Vitrine et lecture', 'Accueil, séries, fiche, lecture HLS signée, progression, favoris')
+      .addTag('App — Portefeuille', 'Solde commun, historique, déblocage d’épisodes')
+      .addTag('App — Boutique', 'Packs de crédits, commandes, paiement')
+      .addTag('Back-office — Catalogue', 'Séries, épisodes, vidéos, sous-titres, genres, licences, vitrine de la marque')
+      .addTag('Back-office — Monétisation', 'Packs de crédits et commandes')
+      .addTag('Back-office — Spectateurs et pilotage', 'Tableau de bord, spectateurs, ajustement de crédits')
       .addTag('Système', 'Santé, métriques')
       .build(),
     { operationIdFactory: (controllerKey, methodKey) => `${controllerKey}_${methodKey}` },

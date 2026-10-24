@@ -109,3 +109,23 @@ describe('validateEnv — APP_VERSION', () => {
     expect(validateEnv(baseEnv({ APP_VERSION: 'a1b2c3d' })).APP_VERSION).toBe('a1b2c3d');
   });
 });
+
+describe('Vidéo et paiement', () => {
+  it('pilotes factices par défaut ; une variable vide vaut absence', () => {
+    const env = validateEnv(baseEnv({ PAYTECH_SUCCESS_URL: '', BUNNY_STREAM_API_KEY: '' }));
+    expect(env.VIDEO_DRIVER).toBe('fake');
+    expect(env.PAYMENT_DRIVER).toBe('fake');
+    expect(env.PAYTECH_SUCCESS_URL).toBeUndefined();
+  });
+
+  it('bunny et paytech exigent leurs clés', () => {
+    expect(() => validateEnv(baseEnv({ VIDEO_DRIVER: 'bunny' }))).toThrow(/BUNNY_STREAM_API_KEY/);
+    expect(() => validateEnv(baseEnv({ PAYMENT_DRIVER: 'paytech' }))).toThrow(/PAYTECH_API_SECRET/);
+    const ok = validateEnv(baseEnv({ PAYMENT_DRIVER: 'paytech', PAYTECH_API_KEY: 'k', PAYTECH_API_SECRET: 's' }));
+    expect(ok.PAYMENT_DRIVER).toBe('paytech');
+  });
+
+  it('les pilotes factices sont interdits en production', () => {
+    expect(() => validateEnv(baseEnv({ NODE_ENV: 'production' }))).toThrow(/fake interdit en production/);
+  });
+});

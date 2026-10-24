@@ -56,6 +56,7 @@ export class TenantRegistryService {
       defaultCountry: tenant.defaultCountry,
       defaultCurrency: tenant.defaultCurrency,
       timezone: tenant.timezone,
+      isFirstParty: tenant.isFirstParty ?? false,
       featureFlags: (tenant.featureFlags ?? {}) as Record<string, boolean>,
     };
   }

@@ -134,6 +134,22 @@ jobs:
       - run: pnpm prisma db execute --file prisma/sql/00-bootstrap-roles.sql --schema prisma/schema.prisma
       - run: pnpm prisma migrate deploy
       - run: pnpm db:rls
+      - name: Dérive schéma Prisma ↔ migrations (rapport)
+        shell: bash
+        env:
+          PGPASSWORD: gaatshort
+        run: |
+          psql -h localhost -U gaatshort -d gaatshort -c 'CREATE DATABASE gaatshort_shadow' >/dev/null
+          pnpm prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url postgresql://gaatshort:gaatshort@localhost:5432/gaatshort_shadow --script > drift.sql
+          # Les index partiels, CHECK et triggers écrits à la main n'existent pas dans schema.prisma :
+          # ils apparaissent comme « à supprimer ». Tout le reste est une vraie dérive.
+          grep -vE '^\s*$|^--|DROP INDEX "(one_first_party_tenant|ledger_one_credit_per_order|users_search_trgm|outbox_pending_idx)"' drift.sql > drift-real.sql || true
+          cat drift.sql >> "$GITHUB_STEP_SUMMARY"
+          if [ -s drift-real.sql ]; then
+            while IFS= read -r line; do echo "::error title=drift::${line:0:900}"; done < drift-real.sql
+            exit 1
+          fi
       - run: pnpm openapi:diff
       - uses: actions/upload-artifact@v4
         if: failure()

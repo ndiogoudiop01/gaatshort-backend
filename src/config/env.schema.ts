@@ -39,6 +39,10 @@ const bool = (defaultValue: boolean) =>
     return normalized;
   }, z.boolean().default(defaultValue));
 
+/** Chaîne optionnelle : `FOO=` (vide) vaut absence. */
+const optional = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), schema.optional());
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   APP_NAME: z.string().default('gaatshort-api'),
@@ -117,6 +121,44 @@ export const envSchema = z.object({
   GDPR_RETENTION_APPLICATION_DAYS: z.coerce.number().int().default(730),
   GDPR_RETENTION_REJECTED_DAYS: z.coerce.number().int().default(365),
   GDPR_EXPORT_TTL_HOURS: z.coerce.number().int().default(48),
+
+  // ── Vidéo (VideoProviderPort) ─────────────────────────────────────────
+  // `fake` : aucun appel externe, lecture d'un flux HLS de démonstration.
+  VIDEO_DRIVER: z.enum(['bunny', 'fake']).default('fake'),
+  VIDEO_FAKE_HLS_URL: z.string().url().default('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'),
+  VIDEO_PLAYBACK_TTL_SECONDS: z.coerce.number().int().positive().max(86_400).default(14_400),
+  BUNNY_STREAM_LIBRARY_ID: optional(z.string()),
+  BUNNY_STREAM_API_KEY: optional(z.string()),
+  BUNNY_STREAM_CDN_HOST: optional(z.string()), // ex. vz-xxxx.b-cdn.net
+  BUNNY_STREAM_TOKEN_KEY: optional(z.string()), // clé d'authentification par jeton de la zone
+  BUNNY_WEBHOOK_SECRET: optional(z.string()), // segment secret de l'URL de webhook
+
+  // ── Paiement (PaymentProviderPort) ────────────────────────────────────
+  // `fake` : pas d'appel externe ; la commande se valide via l'écran de simulation (hors production).
+  PAYMENT_DRIVER: z.enum(['paytech', 'fake']).default('fake'),
+  PAYMENT_ORDER_TTL_MINUTES: z.coerce.number().int().positive().default(30),
+  PAYTECH_API_KEY: optional(z.string()),
+  PAYTECH_API_SECRET: optional(z.string()),
+  PAYTECH_ENV: z.enum(['test', 'prod']).default('test'),
+  PAYTECH_SUCCESS_URL: optional(z.string().url()),
+  PAYTECH_CANCEL_URL: optional(z.string().url()),
+}).superRefine((env, ctx) => {
+  const need = (key: keyof typeof env, when: string) => {
+    if (!env[key]) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `obligatoire quand ${when}` });
+  };
+  if (env.VIDEO_DRIVER === 'bunny') {
+    for (const k of ['BUNNY_STREAM_LIBRARY_ID', 'BUNNY_STREAM_API_KEY', 'BUNNY_STREAM_CDN_HOST', 'BUNNY_STREAM_TOKEN_KEY', 'BUNNY_WEBHOOK_SECRET'] as const) {
+      need(k, 'VIDEO_DRIVER=bunny');
+    }
+  }
+  if (env.PAYMENT_DRIVER === 'paytech') {
+    for (const k of ['PAYTECH_API_KEY', 'PAYTECH_API_SECRET'] as const) need(k, 'PAYMENT_DRIVER=paytech');
+  }
+  // Les pilotes factices n'ont rien à faire en production : on refuse de démarrer.
+  if (env.NODE_ENV === 'production') {
+    if (env.VIDEO_DRIVER === 'fake') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['VIDEO_DRIVER'], message: 'fake interdit en production' });
+    if (env.PAYMENT_DRIVER === 'fake') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['PAYMENT_DRIVER'], message: 'fake interdit en production' });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;

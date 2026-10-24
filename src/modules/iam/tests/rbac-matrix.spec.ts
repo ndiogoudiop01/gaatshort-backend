@@ -39,50 +39,18 @@ describe('Matrice RBAC — cohérence du catalogue', () => {
 });
 
 describe('Matrice RBAC — règles de sécurité', () => {
-  /** Une permission « passerelle » n'a de sens qu'avec une portée (:any ou :assigned). */
-  const GATEWAYS: Record<string, string[]> = {
-    'application:read': ['application:read:any', 'application:read:assigned'],
-    'application:transition': ['application:transition:any', 'application:transition:assigned'],
-    'entrepreneur:read': ['entrepreneur:read:any', 'entrepreneur:read:assigned'],
-    'academy:learner:read': ['academy:learner:read:any', 'academy:learner:read:assigned'],
-  };
-
-  it('toute passerelle est accompagnée d’une portée, et inversement', () => {
-    for (const role of roleNames.filter((r) => r !== SUPER_ADMIN)) {
-      for (const [gateway, scopes] of Object.entries(GATEWAYS)) {
-        const hasGateway = ROLES[role].includes(gateway);
-        const hasScope = scopes.some((s) => ROLES[role].includes(s));
-        expect({ role, gateway, ok: hasGateway === hasScope }).toEqual({ role, gateway, ok: true });
-      }
-    }
+  it('le spectateur n’a aucun droit back-office', () => {
+    expect(ROLES.VIEWER).toEqual([]);
   });
 
-  it('les rôles de terrain n’ont jamais de portée :any (sinon l’ABAC devient un no-op)', () => {
-    for (const role of ['MANAGER', 'TRAINER', 'ENTREPRENEUR_OFFICER', 'LEGAL_REFERENT', 'FINANCING_OFFICER', 'NETWORK_MANAGER']) {
-      expect({ role, any: ROLES[role].filter((k) => k.endsWith(':any')) }).toEqual({ role, any: [] });
-    }
+  it('l’opérateur de contenu prépare le catalogue mais ne publie pas', () => {
+    expect(ROLES.CONTENT_MANAGER).toContain('catalog:write');
+    expect(ROLES.CONTENT_MANAGER).not.toContain('catalog:publish');
+    expect(ROLES.CONTENT_MANAGER).not.toContain('license:write');
   });
 
-  it('les comptes publics (candidat, apprenant, entrepreneur) n’ont que des droits « :own » ou d’apprentissage', () => {
-    for (const role of ['CANDIDATE', 'LEARNER', 'ENTREPRENEUR']) {
-      expect(ROLES[role].filter((k) => !k.endsWith(':own') && k !== 'academy:learn')).toEqual([]);
-    }
-  });
-
-  it('proposer et décider sont séparés là où le process exige une validation', () => {
-    // P02-F06 : le formateur propose, le Responsable Academy certifie.
-    expect(ROLES.TRAINER).toContain('academy:decision:propose');
-    expect(ROLES.TRAINER).not.toContain('academy:certification:decide');
-    // P01-F05 : le chargé propose, le responsable valide l'admission.
-    expect(ROLES.ENTREPRENEUR_OFFICER).not.toContain('application:admit');
-    expect(ROLES.ENTREPRENEUR_OPS_LEAD).toContain('application:admit');
-    // P04-F06 : l'ordre de commande n'est pas autorisé par celui qui instruit.
-    expect(ROLES.FINANCING_OFFICER).not.toContain('financing:purchase:authorize');
-    expect(ROLES.FINANCING_DIRECTOR).toContain('financing:purchase:authorize');
-  });
-
-  it('l’auditeur qualité ne peut rien écrire', () => {
-    const writes = ROLES.QUALITY_AUDITOR.filter((k) => !/(:read(:any)?|^quality:audit|^metrics:read)$/.test(k));
+  it('l’assistance ne touche ni au catalogue ni aux prix', () => {
+    const writes = ROLES.SUPPORT.filter((k) => /:(write|publish|upload)$/.test(k));
     expect(writes).toEqual([]);
   });
 
