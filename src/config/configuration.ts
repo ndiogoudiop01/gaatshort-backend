@@ -93,6 +93,29 @@ export const buildConfiguration = (env: Env) =>
       rejectedRetentionDays: env.GDPR_RETENTION_REJECTED_DAYS,
       exportTtlHours: env.GDPR_EXPORT_TTL_HOURS,
     },
+    video: {
+      driver: env.VIDEO_DRIVER,
+      fakeHlsUrl: env.VIDEO_FAKE_HLS_URL,
+      playbackTtlSeconds: env.VIDEO_PLAYBACK_TTL_SECONDS,
+      bunny: {
+        libraryId: env.BUNNY_STREAM_LIBRARY_ID ?? '',
+        apiKey: env.BUNNY_STREAM_API_KEY ?? '',
+        cdnHost: env.BUNNY_STREAM_CDN_HOST ?? '',
+        tokenKey: env.BUNNY_STREAM_TOKEN_KEY ?? '',
+        webhookSecret: env.BUNNY_WEBHOOK_SECRET ?? '',
+      },
+    },
+    payment: {
+      driver: env.PAYMENT_DRIVER,
+      orderTtlMinutes: env.PAYMENT_ORDER_TTL_MINUTES,
+      paytech: {
+        apiKey: env.PAYTECH_API_KEY ?? '',
+        apiSecret: env.PAYTECH_API_SECRET ?? '',
+        env: env.PAYTECH_ENV,
+        successUrl: env.PAYTECH_SUCCESS_URL,
+        cancelUrl: env.PAYTECH_CANCEL_URL,
+      },
+    },
   }) as const;
 
 export type AppConfiguration = ReturnType<typeof buildConfiguration>;

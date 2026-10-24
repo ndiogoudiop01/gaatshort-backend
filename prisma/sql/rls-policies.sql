@@ -103,6 +103,52 @@ BEGIN
 END
 $$;
 
+-- ── Tables GLOBALES de Gaatshort (schema.prisma, règle 1, exception 2) ─────
+-- Identité, catalogue, portefeuille commun (Q-02), boîte de réception des
+-- paiements : pas de tenant_id, donc pas de RLS tenant. L'accès est borné par
+-- les modules qui les portent (règles dependency-cruiser) et par les permissions.
+-- Le grand livre est en ajout seul : ni UPDATE ni DELETE (en plus du trigger).
+DO $$
+DECLARE
+  t text;
+  GLOBAL_WRITABLE_TABLES text[] := ARRAY[
+    'accounts','genres','series','series_genres','episodes','media_assets','subtitle_tracks',
+    'licenses','license_series','wallets','entitlements','payment_provider_events'
+  ];
+BEGIN
+  FOREACH t IN ARRAY GLOBAL_WRITABLE_TABLES LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO gaatshort_app', t);
+    ELSE
+      RAISE NOTICE 'Table globale % absente, GRANT ignoré', t;
+    END IF;
+  END LOOP;
+  IF to_regclass('public.wallet_ledger_entries') IS NOT NULL THEN
+    EXECUTE 'GRANT SELECT, INSERT ON public.wallet_ledger_entries TO gaatshort_app';
+  END IF;
+END
+$$;
+
+-- ── Marque d'une commande à partir de sa référence (webhooks de paiement) ──
+-- Un IPN arrive sans contexte de marque. Cette fonction ne révèle QUE l'id de
+-- la marque d'une référence (aléatoire, non devinable) ; tout le traitement se
+-- fait ensuite dans une transaction posée sur cette marque, sous RLS.
+-- La variable de contournement est restaurée avant le retour de la fonction.
+CREATE OR REPLACE FUNCTION order_tenant_by_reference(p_reference text) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  previous text := current_setting('app.bypass_rls', true);
+  found uuid;
+BEGIN
+  PERFORM set_config('app.bypass_rls', 'on', true);
+  SELECT tenant_id INTO found FROM orders WHERE reference = p_reference;
+  PERFORM set_config('app.bypass_rls', coalesce(previous, 'off'), true);
+  RETURN found;
+END
+$$;
+REVOKE ALL ON FUNCTION order_tenant_by_reference(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION order_tenant_by_reference(text) TO gaatshort_app;
+
 -- ── `tenants` : le registre — lu par tous, écrit SEULEMENT en $privileged ───
 -- Avant : `REVOKE INSERT, UPDATE, DELETE ON tenants FROM gaatshort_app`. Or
 -- l'administration des organisations par le SUPER_ADMIN (BSG-13 : PATCH ;

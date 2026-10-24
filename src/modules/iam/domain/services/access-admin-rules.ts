@@ -25,12 +25,7 @@ export const SUPER_ADMIN = 'SUPER_ADMIN';
  * Rôles SYSTÈME amorcés par `prisma/seed/permissions.seed.ts` (même liste,
  * vérifiée par test) : un rôle personnalisé ne peut pas prendre leur clé.
  */
-export const SYSTEM_ROLE_KEYS: readonly string[] = [
-  'CANDIDATE', 'PARTNER', 'MANAGER', 'ADMIN', SUPER_ADMIN,
-  'LEARNER', 'ENTREPRENEUR', 'TRAINER', 'ACADEMY_MANAGER',
-  'ENTREPRENEUR_OFFICER', 'ENTREPRENEUR_OPS_LEAD', 'LEGAL_REFERENT',
-  'FINANCING_OFFICER', 'FINANCING_DIRECTOR', 'FLEET_OPERATIONS', 'NETWORK_MANAGER', 'QUALITY_AUDITOR',
-];
+export const SYSTEM_ROLE_KEYS: readonly string[] = ['VIEWER', 'CONTENT_MANAGER', 'SUPPORT', 'ADMIN', SUPER_ADMIN];
 /** Rôles dont la liste de permissions ne se modifie pas depuis l'écran. */
 export const LOCKED_ROLES: readonly string[] = [SUPER_ADMIN];
 

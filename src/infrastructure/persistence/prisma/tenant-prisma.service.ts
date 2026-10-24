@@ -4,8 +4,16 @@ import { TenantContextService } from '@infra/tenancy/context/tenant-context.serv
 import { PrismaService } from './prisma.service';
 import { TransactionHost } from './transaction-host.service';
 
-/** Modèles hors périmètre tenant (référentiels globaux). */
-const GLOBAL_MODELS = new Set(['Tenant', 'Country', 'Currency', 'Permission']);
+/**
+ * Modèles hors périmètre tenant : référentiels, et tables globales de Gaatshort
+ * (identité, catalogue, portefeuille commun — schema.prisma, règle 1, exception 2).
+ * Même liste que `GLOBAL_WRITABLE_TABLES` dans prisma/sql/rls-policies.sql.
+ */
+export const GLOBAL_MODELS = new Set([
+  'Tenant', 'Country', 'Currency', 'Permission',
+  'Account', 'Genre', 'Series', 'SeriesGenre', 'Episode', 'MediaAsset', 'SubtitleTrack',
+  'License', 'LicenseSeries', 'Wallet', 'WalletLedgerEntry', 'Entitlement', 'PaymentProviderEvent',
+]);
 
 const READ_OPERATIONS = new Set([
   'findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow',
@@ -87,6 +95,28 @@ export class TenantPrismaService {
     if (current) return run(current);
 
     const tenantId = this.tenantContext.tenantId;
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}::text, TRUE)`;
+        return this.txHost.run(tx, () => run(tx));
+      },
+      { timeout: 15_000, maxWait: 5_000 },
+    );
+  }
+
+  /**
+   * Transaction interactive avec le contexte tenant posé en base, pour une
+   * marque EXPLICITE (webhook de paiement : la marque vient de la commande, pas
+   * de la requête). Pendant `run`, `this.client` renvoie la transaction : les
+   * écritures de tables tenant doivent alors porter `tenantId` elles-mêmes (la
+   * RLS `WITH CHECK` refuse toute autre valeur).
+   */
+  public async transaction<T>(
+    run: (tx: Prisma.TransactionClient) => Promise<T>,
+    tenantId: string = this.tenantContext.tenantId,
+  ): Promise<T> {
+    const current = this.txHost.current;
+    if (current) return run(current);
     return this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}::text, TRUE)`;

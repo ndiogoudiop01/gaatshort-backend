@@ -9,6 +9,8 @@ export interface TenantContextData {
   readonly defaultCountry: string;
   readonly defaultCurrency: string;
   readonly timezone: string;
+  /** Marque maison (D-13) : pas d'exigence de sous-licence pour diffuser une série. */
+  readonly isFirstParty?: boolean;
   readonly featureFlags: Readonly<Record<string, boolean>>;
 }
 

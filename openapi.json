@@ -1267,6 +1267,2002 @@
           "Compte"
         ]
       }
+    },
+    "/api/admin/genres": {
+      "get": {
+        "operationId": "AdminCatalogController_listGenres",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Genres (avec nombre de séries)",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "post": {
+        "operationId": "AdminCatalogController_createGenre",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenreDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer un genre",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/genres/{id}": {
+      "patch": {
+        "operationId": "AdminCatalogController_updateGenre",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGenreDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier un genre",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCatalogController_deleteGenre",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Supprimer un genre",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series": {
+      "get": {
+        "operationId": "AdminCatalogController_listSeries",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Champ de tri",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDir",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PUBLISHED",
+                "ARCHIVED"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Recherche dans le titre ou le slug",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Séries du catalogue (filtres statut et recherche)",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "post": {
+        "operationId": "AdminCatalogController_createSeries",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSeriesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer une série (brouillon)",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series/{id}": {
+      "get": {
+        "operationId": "AdminCatalogController_getSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Série : épisodes, vidéos, sous-titres, licences",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminCatalogController_updateSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeriesBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier une série",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCatalogController_archiveSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Archiver une série",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series/{id}/publish": {
+      "post": {
+        "description": "422 SERIES_HAS_NO_EPISODE, 422 SERIES_NOT_LICENSED",
+        "operationId": "AdminCatalogController_publishSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Publier au catalogue",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series/{id}/unpublish": {
+      "post": {
+        "operationId": "AdminCatalogController_unpublishSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Repasser la série en brouillon",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series/{id}/episodes": {
+      "post": {
+        "operationId": "AdminCatalogController_createEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEpisodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Ajouter un épisode",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series/{id}/episodes/bulk": {
+      "post": {
+        "operationId": "AdminCatalogController_bulkEpisodes",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkEpisodesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer N épisodes brouillons à la suite",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/series/{id}/episodes/publish-ready": {
+      "post": {
+        "operationId": "AdminCatalogController_publishReady",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Publier tous les épisodes dont la vidéo est prête",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/episodes/{id}": {
+      "get": {
+        "operationId": "AdminCatalogController_getEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Épisode",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminCatalogController_updateEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEpisodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier un épisode",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "delete": {
+        "description": "422 EPISODE_IN_USE",
+        "operationId": "AdminCatalogController_deleteEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Supprimer un brouillon jamais acheté",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/episodes/{id}/publish": {
+      "post": {
+        "description": "422 EPISODE_VIDEO_NOT_READY",
+        "operationId": "AdminCatalogController_publishEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Publier un épisode",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/episodes/{id}/withdraw": {
+      "post": {
+        "operationId": "AdminCatalogController_withdrawEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Retirer un épisode",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/episodes/{id}/video/upload": {
+      "post": {
+        "description": "`upload` est nul avec le pilote factice : la vidéo est prête aussitôt.",
+        "operationId": "AdminCatalogController_createUpload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Préparer le téléversement direct (TUS) de la vidéo",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/episodes/{id}/video/ingest": {
+      "post": {
+        "operationId": "AdminCatalogController_ingest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestVideoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Importer la vidéo depuis une URL",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/media/{id}/refresh": {
+      "post": {
+        "operationId": "AdminCatalogController_refresh",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Relire l'état d'encodage chez le fournisseur",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/episodes/{id}/subtitles/{locale}": {
+      "put": {
+        "operationId": "AdminCatalogController_setSubtitle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubtitleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Définir les sous-titres WebVTT (fr | en)",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCatalogController_removeSubtitle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Retirer des sous-titres",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/licenses": {
+      "get": {
+        "operationId": "AdminCatalogController_listLicenses",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Licences de diffusion",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "post": {
+        "operationId": "AdminCatalogController_createLicense",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Enregistrer une licence",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/licenses/{id}": {
+      "patch": {
+        "operationId": "AdminCatalogController_updateLicense",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLicenseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier une licence",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCatalogController_deleteLicense",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Supprimer une licence",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/storefront/series": {
+      "get": {
+        "operationId": "AdminCatalogController_tenantSeries",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HIDDEN",
+                "LIVE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Séries publiées et leur diffusion par la marque courante",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/admin/storefront/series/{seriesId}": {
+      "put": {
+        "description": "422 SERIES_NOT_PUBLISHED, 422 SERIES_NOT_LICENSED_FOR_TENANT",
+        "operationId": "AdminCatalogController_setTenantSeries",
+        "parameters": [
+          {
+            "name": "seriesId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantSeriesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Diffuser / masquer une série, mise en avant, prix",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
+    "/api/wallet": {
+      "get": {
+        "operationId": "WalletController_balance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Solde de crédits (commun à toutes les marques)",
+        "tags": [
+          "App — Portefeuille"
+        ]
+      }
+    },
+    "/api/wallet/ledger": {
+      "get": {
+        "operationId": "WalletController_ledger",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "before",
+            "required": false,
+            "in": "query",
+            "description": "Curseur : `nextBefore` de la page précédente",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Historique des mouvements de crédits",
+        "tags": [
+          "App — Portefeuille"
+        ]
+      }
+    },
+    "/api/episodes/{id}/unlock": {
+      "post": {
+        "description": "Idempotent : un épisode déjà débloqué ne débite rien. 409 INSUFFICIENT_BALANCE si le solde manque.",
+        "operationId": "WalletController_unlock",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Débloquer un épisode payant avec des crédits",
+        "tags": [
+          "App — Portefeuille"
+        ]
+      }
+    },
+    "/api/storefront/config": {
+      "get": {
+        "operationId": "StorefrontController_config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Marque courante : nom, branding, langue, devise",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/storefront/home": {
+      "get": {
+        "operationId": "StorefrontController_home",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Accueil : mises en avant, nouveautés, populaires, rangées par genre",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/storefront/genres": {
+      "get": {
+        "operationId": "StorefrontController_genres",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Genres",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/storefront/series": {
+      "get": {
+        "operationId": "StorefrontController_series",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          },
+          {
+            "name": "genre",
+            "required": false,
+            "in": "query",
+            "description": "Slug du genre",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Recherche",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 50,
+              "default": 24,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Séries diffusées (filtre genre, recherche, pagination)",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/storefront/series/{slug}": {
+      "get": {
+        "operationId": "StorefrontController_seriesDetail",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Fiche série : épisodes, gratuité, prix, épisodes débloqués, reprise",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/episodes/{id}/playback": {
+      "get": {
+        "description": "Épisode gratuit : sans connexion. Épisode payant : droit de visionnage requis, sinon 403 EPISODE_LOCKED (details.priceCoins, details.loginRequired).",
+        "operationId": "StorefrontController_playback",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "URL de lecture HLS signée (courte durée)",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/episodes/{id}/progress": {
+      "put": {
+        "operationId": "StorefrontController_progress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Enregistrer la position de lecture",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/me/continue-watching": {
+      "get": {
+        "operationId": "StorefrontController_continueWatching",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Reprendre la lecture",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/me/favorites": {
+      "get": {
+        "operationId": "StorefrontController_favorites",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Ma liste",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/me/favorites/{seriesId}": {
+      "post": {
+        "operationId": "StorefrontController_addFavorite",
+        "parameters": [
+          {
+            "name": "seriesId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Ajouter à ma liste (id ou slug)",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      },
+      "delete": {
+        "operationId": "StorefrontController_removeFavorite",
+        "parameters": [
+          {
+            "name": "seriesId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Retirer de ma liste",
+        "tags": [
+          "App — Vitrine et lecture"
+        ]
+      }
+    },
+    "/api/billing/packs": {
+      "get": {
+        "operationId": "BillingController_listPacks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Packs de crédits de la marque",
+        "tags": [
+          "App — Boutique"
+        ]
+      }
+    },
+    "/api/billing/orders": {
+      "post": {
+        "description": "Le portefeuille n’est crédité qu’à réception de la notification vérifiée du fournisseur.",
+        "operationId": "BillingController_createOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Une clé par intention d’achat (double tap = même commande)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer une commande et obtenir l’URL de paiement",
+        "tags": [
+          "App — Boutique"
+        ]
+      },
+      "get": {
+        "operationId": "BillingController_myOrders",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mes commandes",
+        "tags": [
+          "App — Boutique"
+        ]
+      }
+    },
+    "/api/billing/orders/{idOrReference}": {
+      "get": {
+        "operationId": "BillingController_myOrder",
+        "parameters": [
+          {
+            "name": "idOrReference",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Statut d’une commande (à interroger au retour du paiement)",
+        "tags": [
+          "App — Boutique"
+        ]
+      }
+    },
+    "/api/admin/packs": {
+      "get": {
+        "operationId": "BillingController_adminPacks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Packs de crédits (actifs et inactifs)",
+        "tags": [
+          "App — Boutique",
+          "Back-office — Monétisation"
+        ]
+      },
+      "post": {
+        "operationId": "BillingController_createPack",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Créer un pack",
+        "tags": [
+          "App — Boutique",
+          "Back-office — Monétisation"
+        ]
+      }
+    },
+    "/api/admin/packs/{id}": {
+      "patch": {
+        "operationId": "BillingController_updatePack",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Modifier un pack (les commandes passées gardent leur prix)",
+        "tags": [
+          "App — Boutique",
+          "Back-office — Monétisation"
+        ]
+      }
+    },
+    "/api/admin/orders": {
+      "get": {
+        "operationId": "BillingController_adminOrders",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Champ de tri",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDir",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "SUCCEEDED",
+                "FAILED",
+                "CANCELLED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Référence (GS-…)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Commandes de la marque",
+        "tags": [
+          "App — Boutique",
+          "Back-office — Monétisation"
+        ]
+      }
+    },
+    "/api/admin/orders/{id}": {
+      "get": {
+        "operationId": "BillingController_adminOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Commande : historique et notifications reçues",
+        "tags": [
+          "App — Boutique",
+          "Back-office — Monétisation"
+        ]
+      }
+    },
+    "/api/admin/dashboard": {
+      "get": {
+        "operationId": "AudienceController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Tableau de bord de la marque (7 et 30 jours)",
+        "tags": [
+          "Back-office — Spectateurs et pilotage"
+        ]
+      }
+    },
+    "/api/admin/viewers": {
+      "get": {
+        "operationId": "AudienceController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "perPage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Champ de tri",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDir",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Téléphone ou nom",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Spectateurs de la marque",
+        "tags": [
+          "Back-office — Spectateurs et pilotage"
+        ]
+      }
+    },
+    "/api/admin/viewers/{accountId}": {
+      "get": {
+        "operationId": "AudienceController_detail",
+        "parameters": [
+          {
+            "name": "accountId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Spectateur : solde, mouvements, commandes",
+        "tags": [
+          "Back-office — Spectateurs et pilotage"
+        ]
+      }
+    },
+    "/api/admin/viewers/{accountId}/wallet/adjust": {
+      "post": {
+        "description": "422 ADJUSTMENT_EXCEEDS_BONUS",
+        "operationId": "AudienceController_adjust",
+        "parameters": [
+          {
+            "name": "accountId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustWalletDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Ajuster les crédits bonus (motif obligatoire, audité)",
+        "tags": [
+          "Back-office — Spectateurs et pilotage"
+        ]
+      }
     }
   },
   "info": {
@@ -1702,6 +3698,473 @@
         },
         "required": [
           "consents"
+        ]
+      },
+      "GenreDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "example": "romance"
+          },
+          "nameFr": {
+            "type": "string",
+            "example": "Romance"
+          },
+          "nameEn": {
+            "type": "string",
+            "example": "Romance"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "slug",
+          "nameFr",
+          "nameEn"
+        ]
+      },
+      "UpdateGenreDto": {
+        "type": "object",
+        "properties": {
+          "nameFr": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        }
+      },
+      "CreateSeriesDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "Déduit du titre si absent"
+          },
+          "titleFr": {
+            "type": "string"
+          },
+          "titleEn": {
+            "type": "string"
+          },
+          "synopsisFr": {
+            "type": "string"
+          },
+          "synopsisEn": {
+            "type": "string"
+          },
+          "originalLocale": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en"
+            ]
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "maturityRating": {
+            "type": "string",
+            "example": "13+"
+          },
+          "releaseYear": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "freeEpisodes": {
+            "type": "number",
+            "default": 5
+          },
+          "episodePriceCoins": {
+            "type": "number",
+            "default": 15
+          },
+          "genreIds": {
+            "description": "Identifiants de genres",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SeriesBodyDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "Déduit du titre si absent"
+          },
+          "titleFr": {
+            "type": "string"
+          },
+          "titleEn": {
+            "type": "string"
+          },
+          "synopsisFr": {
+            "type": "string"
+          },
+          "synopsisEn": {
+            "type": "string"
+          },
+          "originalLocale": {
+            "type": "string",
+            "enum": [
+              "fr",
+              "en"
+            ]
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "maturityRating": {
+            "type": "string",
+            "example": "13+"
+          },
+          "releaseYear": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "freeEpisodes": {
+            "type": "number",
+            "default": 5
+          },
+          "episodePriceCoins": {
+            "type": "number",
+            "default": 15
+          },
+          "genreIds": {
+            "description": "Identifiants de genres",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateEpisodeDto": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "number",
+            "description": "Numéro ; par défaut le suivant"
+          },
+          "titleFr": {
+            "type": "string"
+          },
+          "titleEn": {
+            "type": "string"
+          },
+          "priceCoinsOverride": {
+            "type": "number"
+          }
+        }
+      },
+      "BulkEpisodesDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number",
+            "description": "Nombre d'épisodes à créer à la suite",
+            "example": 60
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "UpdateEpisodeDto": {
+        "type": "object",
+        "properties": {
+          "titleFr": {
+            "type": "object"
+          },
+          "titleEn": {
+            "type": "object"
+          },
+          "priceCoinsOverride": {
+            "type": "object",
+            "nullable": true
+          },
+          "thumbnailUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "IngestVideoDto": {
+        "type": "object",
+        "properties": {
+          "sourceUrl": {
+            "type": "string",
+            "description": "URL du fichier source, téléchargé par le fournisseur vidéo"
+          }
+        },
+        "required": [
+          "sourceUrl"
+        ]
+      },
+      "SubtitleDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL du fichier WebVTT"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "LicenseDto": {
+        "type": "object",
+        "properties": {
+          "licensorName": {
+            "type": "string"
+          },
+          "contractRef": {
+            "type": "string"
+          },
+          "documentUrl": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "territories": {
+            "example": [
+              "SN",
+              "GM"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sublicensingAllowed": {
+            "type": "boolean",
+            "default": false
+          },
+          "notes": {
+            "type": "string"
+          },
+          "seriesIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "licensorName",
+          "contractRef",
+          "startsAt",
+          "endsAt",
+          "territories"
+        ]
+      },
+      "UpdateLicenseDto": {
+        "type": "object",
+        "properties": {
+          "licensorName": {
+            "type": "string"
+          },
+          "contractRef": {
+            "type": "string"
+          },
+          "documentUrl": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "territories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sublicensingAllowed": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "seriesIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TenantSeriesDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "HIDDEN",
+              "LIVE"
+            ]
+          },
+          "featured": {
+            "type": "boolean"
+          },
+          "position": {
+            "type": "number"
+          },
+          "freeEpisodesOverride": {
+            "type": "object",
+            "nullable": true
+          },
+          "episodePriceCoinsOverride": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ProgressDto": {
+        "type": "object",
+        "properties": {
+          "positionSeconds": {
+            "type": "number",
+            "example": 42
+          },
+          "completed": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "positionSeconds"
+        ]
+      },
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "packId": {
+            "type": "string"
+          },
+          "returnUrl": {
+            "type": "string",
+            "description": "URL de retour après paiement (origine autorisée ou schéma de l'application)"
+          }
+        },
+        "required": [
+          "packId"
+        ]
+      },
+      "PackDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "pack-300"
+          },
+          "coins": {
+            "type": "number",
+            "example": 300
+          },
+          "bonusCoins": {
+            "type": "number",
+            "example": 30
+          },
+          "currencyCode": {
+            "type": "string",
+            "default": "XOF"
+          },
+          "amountMinor": {
+            "type": "number",
+            "description": "Prix en unités mineures (XOF : francs)",
+            "example": 1000
+          },
+          "badge": {
+            "type": "string",
+            "example": "Populaire"
+          },
+          "position": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "coins",
+          "amountMinor"
+        ]
+      },
+      "UpdatePackDto": {
+        "type": "object",
+        "properties": {
+          "coins": {
+            "type": "number"
+          },
+          "bonusCoins": {
+            "type": "number"
+          },
+          "amountMinor": {
+            "type": "number"
+          },
+          "badge": {
+            "type": "object",
+            "nullable": true
+          },
+          "position": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AdjustWalletDto": {
+        "type": "object",
+        "properties": {
+          "delta": {
+            "type": "number",
+            "description": "Crédits bonus ajoutés (positif) ou retirés (négatif)",
+            "example": 30
+          },
+          "reason": {
+            "type": "string",
+            "description": "Motif (obligatoire, audité)"
+          }
+        },
+        "required": [
+          "delta",
+          "reason"
         ]
       }
     }

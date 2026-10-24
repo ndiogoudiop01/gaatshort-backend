@@ -5,6 +5,8 @@ export interface AuthenticatedUser {
   readonly roles: readonly string[];
   readonly permissions: readonly string[];
   readonly sessionId: string;
+  /** Compte global du spectateur (Q-02) ; `null` pour un compte back-office sans téléphone. */
+  readonly accountId?: string | null;
   /**
    * BSG-12 — périmètre pays, figé dans le jeton comme les permissions.
    * `null` = tous les pays du tenant. Absent (jeton émis avant BSG-12,
@@ -21,6 +23,8 @@ export interface JwtAccessPayload {
   readonly roles: string[];
   readonly perms: string[];
   readonly sid: string;
+  /** Compte global du spectateur (Q-02). */
+  readonly acc?: string | null;
   /** BSG-12 — pays visibles ; `null` = tous. Cf. `AuthenticatedUser.countries`. */
   readonly cty?: string[] | null;
   readonly iat: number;

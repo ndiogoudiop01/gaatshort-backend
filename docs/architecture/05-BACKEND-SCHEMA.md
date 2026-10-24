@@ -751,3 +751,21 @@ wallets:                 (t1, u1) paid 200, bonus 5
 | Contrats de licence | Bucket privé versionné, sauvegardé dans une autre région |
 | Secrets | Clé maîtresse de chiffrement sauvegardée séparément (coffre), procédure de rotation documentée |
 | Test | Restauration mensuelle sur staging, chronométrée, vérification automatique (nombre de lignes, intégrité du grand livre) ; RTO cible ≤ 4 h |
+
+## 13. Mise en œuvre (2026-10-24) — écarts assumés par rapport à ce document
+
+Implémentation livrée dans `gaatshort-backend` (migration `20261024020000_films_series`). Écarts volontaires, à réviser si le besoin apparaît :
+
+| Sujet | Document (v0.2) | Implémenté | Raison |
+|---|---|---|---|
+| Portefeuille, grand livre, droits | Par marque (RLS) | **Globaux**, par compte (`accounts`) ; marque d'origine tracée dans `origin_tenant_id` | Décision **Q-02 : portefeuille commun**. Le nom `origin_tenant_id` évite que la politique RLS générique sur `tenant_id` s'y applique. |
+| Identité | `users` global + `tenant_memberships` | `accounts` global (un numéro = un compte) + ligne `users` par marque comme rattachement (`users.account_id`) | Réutilise sans rupture l'IAM du socle (rôles, sessions, back-office). |
+| Traductions | Tables `*_translations` | Colonnes `title_fr` / `title_en`, `synopsis_fr` / `synopsis_en`, `name_fr` / `name_en` | Deux langues seulement (FR, EN) au lancement. |
+| Prix des packs | `coin_pack_prices` par devise | Un prix par pack (`currency_code`, `amount_minor`, entier) | XOF seul au lancement (Gambie en XOF, D-12). |
+| Comptes fournisseurs de paiement | `payment_provider_accounts` chiffrés en base | Clés PayTech en variables d'environnement | Un seul compte PayTech au lancement (D-07). |
+| Vitrine | `storefront_rows` composées | Accueil calculé : à la une (`tenant_series.featured`), nouveautés, populaires (progressions 30 j), rangées par genre | Suffisant pour la v0, sans écran de composition. |
+| Expiration des commandes | Tâche planifiée | Constatée à la lecture (`GET /billing/orders/:ref`) ; un paiement confirmé après expiration est crédité | Pas de tâche cross-tenant à maintenir. |
+| Notifications de paiement | `body_enc` chiffré | `payload` JSON sans les empreintes de clés | La charge PayTech ne contient pas de secret une fois expurgée. |
+| Lecture | `playback_events` partitionnée | Non implémentée ; `watch_progress` sert aux statistiques | Reporté (analytics). |
+
+Pilotes factices `VIDEO_DRIVER=fake` et `PAYMENT_DRIVER=fake` pour le développement et les tests de bout en bout ; refusés au démarrage si `NODE_ENV=production`.

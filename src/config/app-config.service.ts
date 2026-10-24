@@ -43,4 +43,10 @@ export class AppConfigService {
   public get gdpr(): AppConfiguration['gdpr'] {
     return this.config.get('gdpr', { infer: true });
   }
+  public get video(): AppConfiguration['video'] {
+    return this.config.get('video', { infer: true });
+  }
+  public get payment(): AppConfiguration['payment'] {
+    return this.config.get('payment', { infer: true });
+  }
 }

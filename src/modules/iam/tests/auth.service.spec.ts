@@ -379,3 +379,57 @@ describe('AuthService.loginWithPassword', () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 });
+
+describe('AuthService — compte global du spectateur (Q-02)', () => {
+  function phoneService(existing: Record<string, unknown> | null, account = { id: 'acc-1', status: 'ACTIVE' }) {
+    const upsertAccount = jest.fn(async () => account);
+    const createUser = jest.fn(async (args: { data: Record<string, unknown> }) => ({ id: 'user-1', ...args.data }));
+    const updateUser = jest.fn(async () => ({ id: 'user-1' }));
+    const signAsync = jest.fn(async (_payload: Record<string, unknown>) => 'jwt');
+    const service = buildService({
+      jwt: { signAsync: signAsync as unknown as () => Promise<string> },
+      tenantContext: { get: () => ({ tenantId: 'tenant-1', defaultLocale: 'fr' }) as never },
+      prismaClient: {
+        authChallenge: {
+          findFirst: async () => ({
+            id: 'c', channel: 'PHONE_OTP', secretHash: hasher().hash('123456'), attempts: 0, maxAttempts: 5,
+            expiresAt: new Date('2026-09-01T00:10:00.000Z'), consumedAt: null,
+          }),
+          update: jest.fn(),
+        },
+        account: { upsert: upsertAccount },
+        user: {
+          findFirst: async () => existing,
+          create: createUser,
+          update: updateUser,
+          findUniqueOrThrow: async () => ({ id: 'user-1', status: 'ACTIVE', roles: [], accountId: 'acc-1', allCountries: false, countryScope: [] }),
+        },
+        role: { findFirst: async () => ({ id: 'role-viewer' }) },
+        authSession: { create: jest.fn() },
+      },
+    });
+    return { service, upsertAccount, createUser, updateUser, signAsync };
+  }
+
+  it('premier passage : crée le compte global (pays et langue déduits de l’indicatif) et le rattachement', async () => {
+    const { service, upsertAccount, createUser, signAsync } = phoneService(null);
+    await service.verifyChallenge({ identifier: '+2207012345', secret: '123456' });
+    expect(upsertAccount).toHaveBeenCalledWith(expect.objectContaining({
+      where: { phoneE164: '+2207012345' },
+      create: expect.objectContaining({ countryCode: 'GM', locale: 'en' }),
+    }));
+    expect(createUser.mock.calls[0][0].data).toMatchObject({ accountId: 'acc-1', phoneE164: '+2207012345' });
+    expect(signAsync.mock.calls[0][0]).toMatchObject({ acc: 'acc-1' });
+  });
+
+  it('rattachement existant sans compte : le relie au compte global', async () => {
+    const { service, updateUser } = phoneService({ id: 'user-1', accountId: null });
+    await service.verifyChallenge({ identifier: '+221771234567', secret: '123456' });
+    expect(updateUser).toHaveBeenCalledWith(expect.objectContaining({ data: { accountId: 'acc-1' } }));
+  });
+
+  it('compte global bloqué : connexion refusée', async () => {
+    const { service } = phoneService(null, { id: 'acc-1', status: 'BLOCKED' });
+    await expect(service.verifyChallenge({ identifier: '+221771234567', secret: '123456' })).rejects.toBeInstanceOf(BusinessRuleViolationError);
+  });
+});
