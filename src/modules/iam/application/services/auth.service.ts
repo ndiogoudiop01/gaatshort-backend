@@ -14,6 +14,7 @@ import { PasswordHasher } from '@infra/security/password-hasher.service';
 import { TokenHasher } from '@infra/security/token-hasher.service';
 import { AuthChallengeRules } from '../../domain/services/auth-challenge.service';
 import { effectiveCountryScope } from '@shared/kernel/access/country-scope';
+import { countryFromPhone } from '@infra/viewer/viewer-context.service';
 
 export interface TokenPair {
   readonly accessToken: string;
@@ -260,6 +261,7 @@ export class AuthService {
     const payload: Omit<JwtAccessPayload, 'iat' | 'exp'> = {
       sub: user.id,
       tid: tenant.tenantId, // ← le tenant est scellé dans le token
+      acc: user.accountId ?? null, // compte global du spectateur (Q-02)
       email: user.email,
       roles,
       perms: permissions,
@@ -301,22 +303,51 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn: 900, sessionId };
   }
 
-  /** Création implicite au premier accès : pas d'étape « inscription » séparée. */
+  /**
+   * Création implicite au premier accès : pas d'étape « inscription » séparée.
+   *
+   * Q-02 (portefeuille commun) : un numéro = UN compte global (`accounts`),
+   * rattaché à chaque marque visitée par une ligne `users` (le rattachement).
+   * Le portefeuille et les épisodes débloqués suivent le compte, pas la marque.
+   */
   private async findOrCreateUser(identifier: string, isPhone: boolean) {
+    const now = this.clock.now();
+    const account = isPhone
+      ? await this.prisma.client.account.upsert({
+          where: { phoneE164: identifier },
+          create: {
+            phoneE164: identifier,
+            countryCode: countryFromPhone(identifier),
+            // Gambie anglophone (PRD §3) ; sinon la langue de la marque.
+            locale: countryFromPhone(identifier) === 'GM' ? 'en' : (this.tenantContext.get().defaultLocale ?? 'fr'),
+          },
+          update: {},
+        })
+      : null;
+    if (account && account.status !== 'ACTIVE') {
+      throw new BusinessRuleViolationError('ACCOUNT_SUSPENDED', 'Ce compte est suspendu');
+    }
+
     const where = isPhone ? { phoneE164: identifier } : { email: identifier };
     const existing = await this.prisma.client.user.findFirst({ where });
-    if (existing) return existing;
+    if (existing) {
+      if (account && existing.accountId !== account.id) {
+        return this.prisma.client.user.update({ where: { id: existing.id }, data: { accountId: account.id } });
+      }
+      return existing;
+    }
 
-    const candidateRole = await this.prisma.client.role.findFirst({ where: { key: 'CANDIDATE' } });
+    const viewerRole = await this.prisma.client.role.findFirst({ where: { key: 'VIEWER' } });
 
     // `tenantId` est injecté par l'extension Prisma tenant-scopée.
     return this.prisma.client.user.create({
       data: {
         ...(isPhone ? { phoneE164: identifier } : { email: identifier }),
+        ...(account ? { accountId: account.id } : {}),
         status: 'ACTIVE',
-        ...(isPhone ? { phoneVerifiedAt: this.clock.now() } : { emailVerifiedAt: this.clock.now() }),
-        ...(candidateRole
-          ? { roles: { create: { roleId: candidateRole.id, tenantId: this.tenantContext.get().tenantId } } }
+        ...(isPhone ? { phoneVerifiedAt: now } : { emailVerifiedAt: now }),
+        ...(viewerRole
+          ? { roles: { create: { roleId: viewerRole.id, tenantId: this.tenantContext.get().tenantId } } }
           : {}),
       } as never,
     });

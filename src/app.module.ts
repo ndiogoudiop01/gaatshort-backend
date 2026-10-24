@@ -22,6 +22,12 @@ import { TenantAdminModule } from '@modules/tenancy/tenant-admin.module';
 import { LocalizationModule } from '@modules/localization/localization.module';
 import { ComplianceModule } from '@modules/compliance/compliance.module';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
+import { CatalogModule } from '@modules/catalog/catalog.module';
+import { WalletModule } from '@modules/wallet/wallet.module';
+import { LibraryModule } from '@modules/library/library.module';
+import { BillingModule } from '@modules/billing/billing.module';
+import { AudienceModule } from '@modules/audience/audience.module';
+import { ViewerContextModule } from '@infra/viewer/viewer-context.service';
 
 // ─── Transverses HTTP ───────────────────────────────────────────────────
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
@@ -72,6 +78,7 @@ import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
     StorageModule,
     MailModule,
     SecurityModule,
+    ViewerContextModule,
     ScheduleModule.forRoot(),
 
     IamModule,
@@ -79,6 +86,11 @@ import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
     LocalizationModule,
     ComplianceModule,
     NotificationsModule,
+    CatalogModule,
+    WalletModule,
+    LibraryModule,
+    BillingModule,
+    AudienceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: TenantThrottlerGuard },

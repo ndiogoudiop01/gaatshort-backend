@@ -87,7 +87,7 @@ describe('AuthController', () => {
       id: 'user-1',
       tenantId: 'tenant-1',
       email: 'awa@example.com',
-      roles: ['CANDIDATE'],
+      roles: ['VIEWER'],
       permissions: [],
       sessionId: 'session-1',
     };

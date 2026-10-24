@@ -26,7 +26,7 @@
     "test:cov": "jest --coverage",
     "test:ci": "jest --coverage --ci --runInBand --coverageReporters=text-summary --coverageReporters=cobertura --reporters=default --reporters=jest-junit",
     "test:integration": "jest --config test/jest-integration.json --runInBand",
-    "test:integration:ci": "jest --config test/jest-integration.json --runInBand --ci --reporters=default --reporters=jest-junit",
+    "test:integration:ci": "jest --config test/jest-integration.json --runInBand --ci --forceExit --reporters=default --reporters=jest-junit",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
     "test:arch": "jest --config test/jest-arch.json",
     "db:generate": "prisma generate",
@@ -87,7 +87,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sanitize-html": "2.17.1",
-    "zod": "^3.24.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -168,6 +168,21 @@
         "lines": 90,
         "statements": 90
       }
+    }
+  },
+  "pnpm": {
+    "overrides": {
+      "proxy-addr@<2.0.8": ">=2.0.8",
+      "compression@<1.8.2": ">=1.8.2",
+      "sanitize-html@<2.17.7": ">=2.17.7",
+      "js-yaml@>=5.0.0 <5.4.1": ">=5.4.1",
+      "brace-expansion@>=2.0.0 <2.1.7": "^2.1.7",
+      "@grpc/grpc-js@>=1.14.0 <1.14.5": "^1.14.5",
+      "source-map-js@<1.2.2": "^1.2.2",
+      "deepmerge-ts@<8.0.0": ">=8.0.0",
+      "follow-redirects@<1.16.1": "^1.16.1",
+      "body-parser@>=2.0.0 <2.4.0": "^2.4.0",
+      "multer@<2.5.0": "^2.5.0"
     }
   }
 }

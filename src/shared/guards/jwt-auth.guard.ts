@@ -1,7 +1,7 @@
 import { type ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import { IS_PUBLIC_KEY } from '@shared/decorators/public.decorator';
+import { IS_OPTIONAL_AUTH_KEY, IS_PUBLIC_KEY } from '@shared/decorators/public.decorator';
 
 /**
  * Guard global : tout est protégé par défaut, on ouvre explicitement avec
@@ -20,6 +20,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
     if (isPublic) return true;
+    const isOptional = this.reflector.getAllAndOverride<boolean>(IS_OPTIONAL_AUTH_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isOptional) {
+      const header = context.switchToHttp().getRequest<{ headers: Record<string, unknown> }>().headers
+        .authorization;
+      if (typeof header !== 'string' || header.trim() === '') return true;
+    }
     return super.canActivate(context);
   }
 

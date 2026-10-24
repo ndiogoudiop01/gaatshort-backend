@@ -6,7 +6,18 @@
 //     EXCEPTION — référentiels globaux, sans `tenantId`, en lecture seule pour
 //     l'application (GRANT SELECT dans rls-policies.sql) : `currencies`,
 //     `countries`, `permissions`, `role_permissions`, et `tenants` (le registre
-//     lui-même). Toute autre table SANS `tenantId` est un bug.
+//     lui-même).
+//     EXCEPTION 2 — tables GLOBALES de Gaatshort (05-BACKEND-SCHEMA §3 et
+//     décision Q-02 « portefeuille commun ») : identité (`accounts`), catalogue
+//     (`genres`, `series*`, `episodes`, `media_assets`, `subtitle_tracks`,
+//     `licenses*`), portefeuille commun (`wallets`, `wallet_ledger_entries`,
+//     `entitlements`) et boîte de réception des paiements
+//     (`payment_provider_events`). Leur liste est figée dans
+//     `GLOBAL_WRITABLE_TABLES` (rls-policies.sql) et dans `GLOBAL_MODELS`
+//     (tenant-prisma.service.ts). La marque d'origine d'une écriture y est
+//     tracée dans `origin_tenant_id` — nom choisi pour NE PAS déclencher la
+//     politique RLS générique sur `tenant_id`.
+//     Toute autre table SANS `tenantId` est un bug.
 //  2. Toute contrainte d'unicité métier est préfixée par `tenantId`.
 //  3. Tout index de lecture commence par `tenantId` (sélectivité + RLS friendly).
 //  4. Aucune suppression physique sur les agrégats métier : `deletedAt`.
@@ -119,6 +130,8 @@ model Tenant {
   defaultCountry  String           @default("SN") @map("default_country") @db.Char(2)
   defaultCurrency String           @default("XOF") @map("default_currency") @db.Char(3)
   timezone        String           @default("Africa/Dakar")
+  /// Marque maison de la plateforme (D-13) : au plus une (index unique partiel en SQL).
+  isFirstParty    Boolean          @default(false) @map("is_first_party")
   branding        Json             @default("{}")
   featureFlags    Json             @default("{}") @map("feature_flags")
   settings        Json             @default("{}")
@@ -184,6 +197,8 @@ model User {
   phoneVerifiedAt DateTime?  @map("phone_verified_at")
   lastLoginAt     DateTime?  @map("last_login_at")
   mfaEnabled      Boolean    @default(false) @map("mfa_enabled")
+  /// Identité globale du spectateur (Q-02). NULL pour un compte back-office sans téléphone.
+  accountId       String?    @map("account_id") @db.Uuid
   metadata        Json       @default("{}")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
@@ -193,8 +208,11 @@ model User {
   roles        UserRole[]
   sessions     AuthSession[]
 
+  account      Account?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
   @@unique([tenantId, email])
   @@unique([tenantId, phoneE164])
+  @@unique([tenantId, accountId])
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@map("users")
@@ -203,7 +221,7 @@ model User {
 model Role {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String?  @map("tenant_id") @db.Uuid // null = rôle système partagé
-  key         String // CANDIDATE, PARTNER, MANAGER, ADMIN, SUPER_ADMIN
+  key         String // VIEWER, CONTENT_MANAGER, SUPPORT, ADMIN, SUPER_ADMIN
   name        String
   description String?
   isSystem    Boolean  @default(false) @map("is_system")
@@ -513,4 +531,434 @@ model IdempotencyKey {
   @@unique([tenantId, key, endpoint])
   @@index([expiresAt])
   @@map("idempotency_keys")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GAATSHORT — films et séries
+//  Global (sans tenant_id) : identité, catalogue, médias, licences,
+//  portefeuille commun (Q-02). Par marque (RLS) : vitrine, packs, commandes,
+//  progression, favoris.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum AccountStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+/// Identité globale d'un spectateur : un numéro = un compte, toutes marques confondues.
+/// Le rattachement à une marque est la ligne `users` (tenant) qui pointe vers ce compte.
+model Account {
+  id          String        @id @default(uuid()) @db.Uuid
+  phoneE164   String?       @unique @map("phone_e164")
+  email       String?       @unique
+  displayName String?       @map("display_name")
+  locale      String        @default("fr")
+  countryCode String?       @map("country_code") @db.Char(2)
+  status      AccountStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  memberships  User[]
+  wallet       Wallet?
+  entitlements Entitlement[]
+
+  @@map("accounts")
+}
+
+model Genre {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  nameFr    String   @map("name_fr")
+  nameEn    String   @map("name_en")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  series SeriesGenre[]
+
+  @@map("genres")
+}
+
+enum SeriesStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Série (ou film : une série d'un seul épisode). Titres et résumés en FR et EN.
+model Series {
+  id                 String       @id @default(uuid()) @db.Uuid
+  slug               String       @unique
+  status             SeriesStatus @default(DRAFT)
+  originalLocale     String       @default("fr") @map("original_locale")
+  titleFr            String       @map("title_fr")
+  titleEn            String?      @map("title_en")
+  synopsisFr         String       @default("") @map("synopsis_fr")
+  synopsisEn         String?      @map("synopsis_en")
+  posterUrl          String?      @map("poster_url")
+  bannerUrl          String?      @map("banner_url")
+  trailerAssetId     String?      @map("trailer_asset_id") @db.Uuid
+  maturityRating     String       @default("13+") @map("maturity_rating")
+  releaseYear        Int?         @map("release_year")
+  tags               String[]     @default([])
+  freeEpisodes       Int          @default(5) @map("free_episodes")
+  episodePriceCoins  Int          @default(15) @map("episode_price_coins")
+  publishedAt        DateTime?    @map("published_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  deletedAt          DateTime?    @map("deleted_at")
+
+  genres   SeriesGenre[]
+  episodes Episode[]
+  licenses LicenseSeries[]
+  trailer  MediaAsset?     @relation("SeriesTrailer", fields: [trailerAssetId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("series")
+}
+
+model SeriesGenre {
+  seriesId String @map("series_id") @db.Uuid
+  genreId  String @map("genre_id") @db.Uuid
+
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  genre  Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, genreId])
+  @@index([genreId])
+  @@map("series_genres")
+}
+
+enum EpisodeStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+model Episode {
+  id                 String        @id @default(uuid()) @db.Uuid
+  seriesId           String        @map("series_id") @db.Uuid
+  number             Int
+  status             EpisodeStatus @default(DRAFT)
+  titleFr            String?       @map("title_fr")
+  titleEn            String?       @map("title_en")
+  videoAssetId       String?       @unique @map("video_asset_id") @db.Uuid
+  durationSeconds    Int?          @map("duration_seconds")
+  priceCoinsOverride Int?          @map("price_coins_override")
+  thumbnailUrl       String?       @map("thumbnail_url")
+  publishedAt        DateTime?     @map("published_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  series       Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  video        MediaAsset?     @relation("EpisodeVideo", fields: [videoAssetId], references: [id], onDelete: SetNull)
+  subtitles    SubtitleTrack[]
+  entitlements Entitlement[]
+
+  @@unique([seriesId, number])
+  @@map("episodes")
+}
+
+enum MediaKind {
+  VIDEO
+  SUBTITLE
+}
+
+enum MediaProvider {
+  BUNNY_STREAM
+  FAKE
+}
+
+enum MediaStatus {
+  PENDING_UPLOAD
+  PROCESSING
+  READY
+  FAILED
+}
+
+model MediaAsset {
+  id              String        @id @default(uuid()) @db.Uuid
+  kind            MediaKind
+  provider        MediaProvider
+  providerRef     String        @map("provider_ref")
+  status          MediaStatus   @default(PENDING_UPLOAD)
+  title           String?
+  durationSeconds Int?          @map("duration_seconds")
+  width           Int?
+  height          Int?
+  thumbnailUrl    String?       @map("thumbnail_url")
+  failureReason   String?       @map("failure_reason")
+  createdBy       String?       @map("created_by") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  episode       Episode?  @relation("EpisodeVideo")
+  trailerOf     Series[]  @relation("SeriesTrailer")
+
+  @@unique([provider, providerRef])
+  @@index([status])
+  @@map("media_assets")
+}
+
+/// Sous-titres WebVTT par langue (fichier hébergé : URL publique ou stockage objet).
+model SubtitleTrack {
+  episodeId String   @map("episode_id") @db.Uuid
+  locale    String
+  url       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@id([episodeId, locale])
+  @@map("subtitle_tracks")
+}
+
+/// Licence de diffusion (R-02) : aucune série n'est diffusée sans licence valide pour le pays.
+model License {
+  id                  String   @id @default(uuid()) @db.Uuid
+  licensorName        String   @map("licensor_name")
+  contractRef         String   @map("contract_ref")
+  documentUrl         String?  @map("document_url")
+  startsAt            DateTime @map("starts_at")
+  endsAt              DateTime @map("ends_at")
+  territories         String[] @default([])
+  sublicensingAllowed Boolean  @default(false) @map("sublicensing_allowed")
+  notes               String?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  series LicenseSeries[]
+
+  @@map("licenses")
+}
+
+model LicenseSeries {
+  licenseId String @map("license_id") @db.Uuid
+  seriesId  String @map("series_id") @db.Uuid
+
+  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  series  Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@id([licenseId, seriesId])
+  @@index([seriesId])
+  @@map("license_series")
+}
+
+// ── Portefeuille commun (Q-02) ─────────────────────────────────────────────
+
+model Wallet {
+  accountId    String   @id @map("account_id") @db.Uuid
+  paidBalance  Int      @default(0) @map("paid_balance")
+  bonusBalance Int      @default(0) @map("bonus_balance")
+  version      Int      @default(0)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  account Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  entries WalletLedgerEntry[]
+
+  @@map("wallets")
+}
+
+enum LedgerKind {
+  PURCHASE_CREDIT
+  UNLOCK_DEBIT
+  BONUS_GRANT
+  ADJUSTMENT
+  REFUND_REVERSAL
+}
+
+/// Grand livre immuable (trigger BEFORE UPDATE OR DELETE) : une correction est une nouvelle écriture.
+model WalletLedgerEntry {
+  id                String     @id @default(uuid()) @db.Uuid
+  accountId         String     @map("account_id") @db.Uuid
+  kind              LedgerKind
+  paidDelta         Int        @map("paid_delta")
+  bonusDelta        Int        @map("bonus_delta")
+  paidBalanceAfter  Int        @map("paid_balance_after")
+  bonusBalanceAfter Int        @map("bonus_balance_after")
+  originTenantId    String?    @map("origin_tenant_id") @db.Uuid
+  orderId           String?    @map("order_id") @db.Uuid
+  episodeId         String?    @map("episode_id") @db.Uuid
+  idempotencyKey    String?    @map("idempotency_key")
+  reason            String?
+  actorUserId       String?    @map("actor_user_id") @db.Uuid
+  createdAt         DateTime   @default(now()) @map("created_at")
+
+  wallet      Wallet       @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  entitlement Entitlement?
+
+  @@unique([accountId, idempotencyKey])
+  @@index([accountId, createdAt(sort: Desc)])
+  @@map("wallet_ledger_entries")
+}
+
+enum EntitlementSource {
+  COINS
+  ADMIN_GRANT
+}
+
+/// Droit de visionnage d'un épisode payant, valable sur toutes les marques (Q-02).
+/// Les épisodes gratuits n'en créent pas : la gratuité est calculée.
+model Entitlement {
+  id             String            @id @default(uuid()) @db.Uuid
+  accountId      String            @map("account_id") @db.Uuid
+  episodeId      String            @map("episode_id") @db.Uuid
+  source         EntitlementSource
+  ledgerEntryId  String?           @unique @map("ledger_entry_id") @db.Uuid
+  originTenantId String?           @map("origin_tenant_id") @db.Uuid
+  grantedAt      DateTime          @default(now()) @map("granted_at")
+
+  account     Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  episode     Episode            @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  ledgerEntry WalletLedgerEntry? @relation(fields: [ledgerEntryId], references: [id])
+
+  @@unique([accountId, episodeId])
+  @@map("entitlements")
+}
+
+enum PaymentProvider {
+  PAYTECH
+  FAKE
+}
+
+/// Boîte de réception des notifications fournisseurs (globale : la marque n'est connue qu'après lecture).
+model PaymentProviderEvent {
+  id               String          @id @default(uuid()) @db.Uuid
+  provider         PaymentProvider
+  dedupeKey        String          @map("dedupe_key")
+  eventType        String?         @map("event_type")
+  signatureValid   Boolean         @map("signature_valid")
+  orderReference   String?         @map("order_reference")
+  payload          Json
+  processingStatus String          @default("RECEIVED") @map("processing_status") // RECEIVED|PROCESSED|IGNORED|REJECTED|MISMATCH|ERROR
+  processingError  String?         @map("processing_error")
+  receivedAt       DateTime        @default(now()) @map("received_at")
+  processedAt      DateTime?       @map("processed_at")
+
+  @@unique([provider, dedupeKey])
+  @@index([orderReference])
+  @@map("payment_provider_events")
+}
+
+// ── Par marque (RLS) ───────────────────────────────────────────────────────
+
+enum TenantSeriesStatus {
+  HIDDEN
+  LIVE
+}
+
+/// Séries diffusées par une marque, mise en avant et surcharges de prix.
+model TenantSeries {
+  tenantId                  String             @map("tenant_id") @db.Uuid
+  seriesId                  String             @map("series_id") @db.Uuid
+  status                    TenantSeriesStatus @default(HIDDEN)
+  featured                  Boolean            @default(false)
+  position                  Int                @default(0)
+  freeEpisodesOverride      Int?               @map("free_episodes_override")
+  episodePriceCoinsOverride Int?               @map("episode_price_coins_override")
+  createdAt                 DateTime           @default(now()) @map("created_at")
+  updatedAt                 DateTime           @updatedAt @map("updated_at")
+
+  @@id([tenantId, seriesId])
+  @@index([tenantId, status, position])
+  @@map("tenant_series")
+}
+
+model CoinPack {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  code         String
+  coins        Int
+  bonusCoins   Int      @default(0) @map("bonus_coins")
+  currencyCode String   @default("XOF") @map("currency_code") @db.Char(3)
+  amountMinor  Int      @map("amount_minor")
+  badge        String?
+  position     Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, code])
+  @@index([tenantId, active, position])
+  @@map("coin_packs")
+}
+
+enum OrderStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+model Order {
+  id             String          @id @default(uuid()) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  accountId      String          @map("account_id") @db.Uuid
+  reference      String          @unique
+  coinPackId     String          @map("coin_pack_id") @db.Uuid
+  coins          Int
+  bonusCoins     Int             @map("bonus_coins")
+  currencyCode   String          @map("currency_code") @db.Char(3)
+  amountMinor    Int             @map("amount_minor")
+  provider       PaymentProvider
+  providerToken  String?         @unique @map("provider_token")
+  redirectUrl    String?         @map("redirect_url")
+  paymentMethod  String?         @map("payment_method")
+  status         OrderStatus     @default(PENDING)
+  failureCode    String?         @map("failure_code")
+  idempotencyKey String          @map("idempotency_key")
+  expiresAt      DateTime        @map("expires_at")
+  paidAt         DateTime?       @map("paid_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  history OrderStatusHistory[]
+
+  @@unique([tenantId, accountId, idempotencyKey])
+  @@index([tenantId, accountId, createdAt(sort: Desc)])
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  orderId    String       @map("order_id") @db.Uuid
+  fromStatus OrderStatus? @map("from_status")
+  toStatus   OrderStatus  @map("to_status")
+  cause      String // webhook | expiry | admin | simulation
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, orderId])
+  @@map("order_status_history")
+}
+
+model WatchProgress {
+  tenantId        String   @map("tenant_id") @db.Uuid
+  accountId       String   @map("account_id") @db.Uuid
+  episodeId       String   @map("episode_id") @db.Uuid
+  seriesId        String   @map("series_id") @db.Uuid
+  positionSeconds Int      @map("position_seconds")
+  completed       Boolean  @default(false)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@id([tenantId, accountId, episodeId])
+  @@index([tenantId, accountId, updatedAt(sort: Desc)])
+  @@index([tenantId, seriesId, updatedAt(sort: Desc)])
+  @@map("watch_progress")
+}
+
+model Favorite {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  accountId String   @map("account_id") @db.Uuid
+  seriesId  String   @map("series_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([tenantId, accountId, seriesId])
+  @@index([tenantId, accountId, createdAt(sort: Desc)])
+  @@map("favorites")
 }

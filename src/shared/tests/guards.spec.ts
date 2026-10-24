@@ -75,7 +75,7 @@ describe('PermissionsGuard', () => {
     } as unknown as Reflector;
     const guard = new PermissionsGuard(reflector);
     try {
-      guard.canActivate(contextWith(user({ roles: ['CANDIDATE'] })));
+      guard.canActivate(contextWith(user({ roles: ['VIEWER'] })));
       fail('aurait dû lever');
     } catch (error) {
       expect((error as ForbiddenActionError).details.reason).toMatch(/rôle requis/);

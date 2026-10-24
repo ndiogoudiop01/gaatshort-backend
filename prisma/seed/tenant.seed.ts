@@ -17,10 +17,11 @@ export async function seedTenant(prisma: PrismaClient) {
       defaultCountry: 'SN',
       defaultCurrency: 'XOF',
       timezone: 'Africa/Dakar',
+      isFirstParty: true,
       branding: { accent: '#E0325E', logoUrl: null },
       featureFlags: {},
     },
-    update: {},
+    update: { isFirstParty: true },
   });
 
   const tenantId = tenant.id;

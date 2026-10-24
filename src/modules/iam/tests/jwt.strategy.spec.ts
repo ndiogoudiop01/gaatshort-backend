@@ -10,7 +10,7 @@ const PAYLOAD: JwtAccessPayload = {
   sub: 'user-1',
   tid: 'tenant-1',
   email: 'awa@example.com',
-  roles: ['CANDIDATE'],
+  roles: ['VIEWER'],
   perms: ['application:read:own'],
   sid: 'session-1',
   iat: 0,
@@ -34,12 +34,23 @@ describe('JwtStrategy', () => {
       id: 'user-1',
       tenantId: 'tenant-1',
       email: 'awa@example.com',
-      roles: ['CANDIDATE'],
+      roles: ['VIEWER'],
       permissions: ['application:read:own'],
       sessionId: 'session-1',
       // BSG-12 : jeton sans revendication `cty` → aucun filtre pays.
       countries: null,
+      // Jeton sans revendication `acc` (compte back-office) → pas de compte spectateur.
+      accountId: null,
     });
+  });
+
+  it('expose le compte global du spectateur porté par le jeton (Q-02)', async () => {
+    const strategy = new JwtStrategy(
+      CONFIG,
+      fakePrisma({ authSession: { findFirst: async () => ({ id: 'session-1' }) } }),
+    );
+    const user = await strategy.validate({ ...PAYLOAD, acc: 'account-1' });
+    expect(user.accountId).toBe('account-1');
   });
 
   it('refuse un jeton dont la session a été révoquée', async () => {

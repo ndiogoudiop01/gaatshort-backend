@@ -42,12 +42,22 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm lint:ci
-      - run: pnpm depcruise
-      - run: pnpm exec tsc --noEmit -p tsconfig.json
-      - run: pnpm build
-      - name: Audit des dépendances (vulnérabilités hautes et critiques)
-        run: pnpm audit --prod --audit-level high
+      - name: Lint, dépendances, types, build, audit
+        shell: bash
+        run: |
+          set -o pipefail
+          step() { echo "::group::$1"; shift; "$@" 2>&1 | tee -a quality.log; local rc=${PIPESTATUS[0]}; echo "::endgroup::"; return $rc; }
+          step lint pnpm lint:ci
+          step depcruise pnpm depcruise
+          step tsc pnpm exec tsc --noEmit -p tsconfig.json
+          step build pnpm build
+          step audit pnpm audit --prod --audit-level high
+      - name: Résumé des échecs
+        if: failure()
+        shell: bash
+        run: |
+          grep -nE 'error|Error|✖|high|critical' quality.log | head -40 \
+            | while IFS= read -r line; do echo "::error title=quality::${line:0:900}"; done
 
   unit:
     runs-on: ubuntu-24.04
@@ -75,6 +85,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -85,10 +96,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       # Docker est natif sur les runners ubuntu : Testcontainers l'utilise directement.
-      - run: pnpm test:integration:ci
+      - run: pnpm test:integration:ci 2>&1 | tee integration.log; exit ${PIPESTATUS[0]}
+        shell: bash
         env:
           JEST_JUNIT_OUTPUT_DIR: reports
           JEST_JUNIT_OUTPUT_NAME: integration.xml
+      # Rend les échecs lisibles dans le résumé du run (annotations), sans télécharger de journal.
+      - name: Résumé des échecs
+        if: failure()
+        shell: bash
+        run: |
+          grep -A40 '  ● ' integration.log | grep -vE 'ECONN|^\s*$' | head -90 \
+            | while IFS= read -r line; do echo "::error title=integration::${line:0:900}"; done
+          tail -60 integration.log >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -125,6 +145,22 @@ jobs:
       - run: pnpm prisma db execute --file prisma/sql/00-bootstrap-roles.sql --schema prisma/schema.prisma
       - run: pnpm prisma migrate deploy
       - run: pnpm db:rls
+      - name: Dérive schéma Prisma ↔ migrations (rapport)
+        shell: bash
+        env:
+          PGPASSWORD: gaatshort
+        run: |
+          psql -h localhost -U gaatshort -d gaatshort -c 'CREATE DATABASE gaatshort_shadow' >/dev/null
+          pnpm prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url postgresql://gaatshort:gaatshort@localhost:5432/gaatshort_shadow --script > drift.sql
+          # Les index partiels, CHECK et triggers écrits à la main n'existent pas dans schema.prisma :
+          # ils apparaissent comme « à supprimer ». Tout le reste est une vraie dérive.
+          grep -vE '^\s*$|^--|DROP INDEX "(one_first_party_tenant|ledger_one_credit_per_order|users_search_trgm|outbox_pending_idx)"' drift.sql > drift-real.sql || true
+          cat drift.sql >> "$GITHUB_STEP_SUMMARY"
+          if [ -s drift-real.sql ]; then
+            while IFS= read -r line; do echo "::error title=drift::${line:0:900}"; done < drift-real.sql
+            exit 1
+          fi
       - run: pnpm openapi:diff
       - uses: actions/upload-artifact@v4
         if: failure()

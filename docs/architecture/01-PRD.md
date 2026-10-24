@@ -79,7 +79,7 @@ Extension future : autres pays UEMOA (Côte d'Ivoire, Mali…) — l'architectur
 | D-01 | Modèle de tenant | Marques **en marque blanche pour des tiers** (le porteur n'est pas propriétaire des marques). | **[VALIDÉ]** |
 | D-02 | Catalogue | **Partagé entre marques**. Le catalogue est détenu par la plateforme ; chaque tenant choisit les séries qu'il publie. | **[VALIDÉ]** |
 | D-03 | Compte utilisateur | **Un seul compte** utilisateur pour toutes les marques (pas de compte par marque). | **[VALIDÉ]** |
-| D-04 | Données rattachées à un compte | Identité **globale** ; portefeuille, achats, droits de visionnage, historique et favoris **propres à chaque marque** (un utilisateur qui a acheté chez la marque A ne débloque rien chez la marque B). Raison : chaque marque est une entreprise distincte qui encaisse ses propres revenus ; mutualiser les crédits entre marques rend la comptabilité et les reversements ingérables. | **[PROPOSÉ]** — question Q-02 |
+| D-04 | Données rattachées à un compte | Identité **globale** ; **portefeuille de crédits et droits de visionnage COMMUNS** à toutes les marques (un épisode débloqué l'est partout) ; chaque commande reste **attribuée à la marque** où l'achat a eu lieu (`origin_tenant_id`, base des reversements) ; progression et favoris propres à chaque marque. Conséquence : le reversement se calcule sur les achats par marque, et la consommation de crédits achetés ailleurs est tracée pour la compensation entre marques (à définir par contrat, Q-12). | **[VALIDÉ]** (Q-02, 2026-10-24 : portefeuille commun) |
 | D-05 | Monétisation initiale | **Les 5 premiers épisodes de chaque série sont gratuits** (nombre configurable par série, défaut 5). | **[VALIDÉ]** |
 | D-06 | Accès aux épisodes payants | **Portefeuille de crédits** : l'utilisateur achète un pack de crédits, puis chaque épisode payant est **débité directement de ses crédits** (débloqué à vie dans cette marque). Abonnement et publicité récompensée reportés après le MVP. | **[VALIDÉ]** (Q-01) |
 | D-07 | Encaissement | La **plateforme est le marchand** : l'argent arrive **directement sur le compte PayTech de la plateforme**. Le taux de reversement aux marques n'est pas encore fixé : il est stocké comme paramètre par marque et les rapports affichent brut, frais et net. Les comptes marchands propres aux marques restent hors MVP. | **[VALIDÉ]** (Q-03) — taux **[À CONFIRMER]** |
@@ -361,14 +361,14 @@ Activation (≥ 1 épisode lu), profondeur (épisodes par session), taux de pass
 | ID | Question | Réponse / proposition | Statut |
 |---|---|---|---|
 | Q-01 | Accès payant par crédits ? | 5 premiers épisodes gratuits, les suivants débités directement des crédits | **Répondu** → D-05, D-06 |
-| Q-02 | Achats et crédits propres à chaque marque (D-04) ? | Proposition : oui | **Ouvert** |
+| Q-02 | Achats et crédits propres à chaque marque (D-04) ? | **Non : portefeuille commun** à toutes les marques | **Répondu** → D-04 |
 | Q-03 | Qui encaisse ? Taux de partage ? | La plateforme, sur son compte PayTech ; taux inconnu | **Répondu** → D-07 ; taux → Q-12 |
 | Q-04 | Stratégie stores | Mise en place demandée : PWA, puis Android et iOS avec achats intégrés | **Répondu** → D-11, §11.4 |
 | Q-05 | 100 épisodes ou 100 séries ? | 100 séries | **Répondu** → D-09 |
 | Q-06 | Les licences autorisent-elles la diffusion par des marques tierces ? | Inconnu ; vidéos achetées sur différentes plateformes | **Répondu** → D-13, R-02 (registre des licences bloquant) |
 | Q-07 | Compte Wave Business en Gambie ? | Pas pour le moment | **Répondu** → D-12 |
-| Q-08 | Nom définitif de la plateforme et de la marque maison ; mention du compte unique (« compte Gaatshort ») ? | Proposition : « Gaatshort » pour la marque maison, mention discrète du compte | **Ouvert** |
-| Q-09 | Une première marque tierce pilote est-elle identifiée ? | Proposition : lancement sur la marque maison | **Ouvert** |
+| Q-08 | Nom définitif de la plateforme et de la marque maison ; mention du compte unique (« compte Gaatshort ») ? | « Gaatshort » pour la plateforme et la marque maison ; mention discrète « Connexion avec votre compte Gaatshort » sur les marques tierces | **Répondu** |
+| Q-09 | Une première marque tierce pilote est-elle identifiée ? | Non : lancement sur la marque maison | **Répondu** → D-13 |
 | Q-10 | Nombre réel d'épisodes par série, durée moyenne, format des fichiers livrés (résolution, vertical ?), sous-titres FR/EN fournis ou non ? | Hypothèse : 60 épisodes de ~2 min, 1080×1920, sous-titres à vérifier | **Nouveau** |
 | Q-11 | PayTech accepte-t-il les cartes bancaires émises en Gambie ? | À demander à PayTech | **Nouveau** |
 | Q-12 | Taux et fréquence de reversement aux marques tierces | Paramètre par marque, à fixer par contrat | **Nouveau** |

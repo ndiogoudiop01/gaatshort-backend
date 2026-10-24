@@ -15,6 +15,7 @@ import { seedAdminUser } from './admin-user.seed';
 import { seedPermissions } from './permissions.seed';
 import { seedReferenceData } from './reference-data.seed';
 import { seedTenant } from './tenant.seed';
+import { seedCatalog } from './catalog.seed';
 
 /**
  * Amorçage : référentiels globaux, permissions, puis un tenant de démonstration.
@@ -65,6 +66,8 @@ async function main(): Promise<void> {
   await seedPermissions(prisma, tenant.id);
   console.log('► Compte administrateur du back-office…');
   await seedAdminUser(prisma, tenant.id);
+  console.log('► Genres, packs de crédits et catalogue de démonstration…');
+  await seedCatalog(prisma, tenant.id);
   console.log('✓ Amorçage terminé');
 }
 
