@@ -176,8 +176,11 @@ describe('Parcours spectateur (de bout en bout)', () => {
     await http('kaay-drama').get('/me/continue-watching', token2).expect(200).expect((r) => expect(r.body.data).toEqual([]));
     const cfg = await http('kaay-drama').get('/storefront/config').expect(200);
     expect(cfg.body.data.accountNotice).toBe('Connexion avec votre compte Gaatshort');
-    // Isolation : le jeton de la marque A ne vaut rien sur la marque B.
-    await http('kaay-drama').get('/wallet', token).expect((r) => expect([403, 404]).toContain(r.status));
+    // Isolation : le jeton de la marque A est REFUSÉ sur la marque B (le middleware de tenancy
+    // du socle répond 400 TENANT_NOT_RESOLVED et journalise une tentative de traversée).
+    const crossed = await http('kaay-drama').get('/wallet', token);
+    expect([400, 403, 404]).toContain(crossed.status);
+    expect(crossed.body.success).toBe(false);
   });
 
   it('back-office : tableau de bord, catalogue, commandes, spectateurs', async () => {
