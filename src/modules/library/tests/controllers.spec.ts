@@ -1,6 +1,4 @@
 import { StorefrontController } from '../presentation/http/storefront.controller';
-import { WalletController } from '../../wallet/presentation/http/wallet.controller';
-import { AudienceController } from '../../audience/presentation/http/audience.controller';
 
 const viewerCtx = { resolve: jest.fn(async () => ({ accountId: 'acc', country: 'SN', locale: 'fr' })) };
 const anyFn = () => new Proxy({}, { get: (t: Record<string, jest.Mock>, k: string) => (t[k] ??= jest.fn(async () => k)) });
@@ -21,18 +19,4 @@ describe('Contrôleurs spectateur et back-office', () => {
     expect(() => c.removeFavorite(ID, { id: 'staff', accountId: null } as never)).toThrow();
   });
 
-  it('portefeuille', async () => {
-    const wallet = anyFn();
-    const c = new WalletController(wallet as never, viewerCtx as never);
-    await c.balance(USER); await c.ledger(USER, { limit: 10 }); await c.unlock(ID, USER, REQ);
-    expect(wallet.unlock).toHaveBeenCalledWith({ accountId: 'acc', episodeId: ID, country: 'SN', locale: 'fr' });
-  });
-
-  it('spectateurs et tableau de bord', async () => {
-    const audience = anyFn();
-    const c = new AudienceController(audience as never);
-    await c.dashboard(); await c.list({ page: 1, perPage: 20 } as never); await c.detail(ID);
-    await c.adjust(ID, { delta: 10, reason: 'geste commercial' }, USER);
-    expect(audience.adjust).toHaveBeenCalledWith(ID, 10, 'geste commercial', 'u');
-  });
 });

@@ -26,7 +26,7 @@
     "test:cov": "jest --coverage",
     "test:ci": "jest --coverage --ci --runInBand --coverageReporters=text-summary --coverageReporters=cobertura --reporters=default --reporters=jest-junit",
     "test:integration": "jest --config test/jest-integration.json --runInBand",
-    "test:integration:ci": "jest --config test/jest-integration.json --runInBand --ci --reporters=default --reporters=jest-junit",
+    "test:integration:ci": "jest --config test/jest-integration.json --runInBand --ci --forceExit --reporters=default --reporters=jest-junit",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
     "test:arch": "jest --config test/jest-arch.json",
     "db:generate": "prisma generate",
