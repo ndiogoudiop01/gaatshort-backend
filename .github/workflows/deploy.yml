@@ -37,7 +37,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       environment: ${{ steps.meta.outputs.environment }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: meta
         run: |
           SHORT_SHA="${GITHUB_SHA::8}"
