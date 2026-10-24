@@ -1268,6 +1268,37 @@
         ]
       }
     },
+    "/api/admin/catalog/import": {
+      "post": {
+        "description": "Idempotent (série par slug, épisode par numéro ; une vidéo déjà présente n’est pas réimportée). `dryRun` (par défaut) : rapport sans écriture. Les séries créées restent en brouillon. 1 000 lignes au plus par fichier.",
+        "operationId": "AdminCatalogController_importCatalog",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Importer séries et épisodes depuis un CSV",
+        "tags": [
+          "Back-office — Catalogue"
+        ]
+      }
+    },
     "/api/admin/genres": {
       "get": {
         "operationId": "AdminCatalogController_listGenres",
@@ -3698,6 +3729,23 @@
         },
         "required": [
           "consents"
+        ]
+      },
+      "CatalogImportDto": {
+        "type": "object",
+        "properties": {
+          "csv": {
+            "type": "string",
+            "description": "Contenu CSV (UTF-8, séparateur « , » ou « ; »). Une ligne par épisode ; colonnes : series_slug, series_title, synopsis, genres (slugs séparés par |), maturity_rating, release_year, free_episodes, episode_price_coins, poster_url, banner_url, episode_number, episode_title, episode_price_override, video_url."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "default": true,
+            "description": "Vrai : analyse et rapport, aucune écriture."
+          }
+        },
+        "required": [
+          "csv"
         ]
       },
       "GenreDto": {
