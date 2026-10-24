@@ -3,7 +3,6 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiExcludeEndpoint, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { AppConfigService } from '@config/app-config.service';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RequirePermissions } from '@shared/decorators/permissions.decorator';
 import { Public } from '@shared/decorators/public.decorator';
@@ -22,7 +21,6 @@ export class BillingController {
     private readonly packs: PacksService,
     private readonly orders: OrdersService,
     private readonly notifications: PaymentNotificationService,
-    private readonly config: AppConfigService,
   ) {}
 
   @Public()
@@ -48,7 +46,7 @@ export class BillingController {
       accountId: requireAccountId(user),
       packId: dto.packId,
       idempotencyKey: key,
-      returnUrl: this.safeReturnUrl(dto.returnUrl),
+      returnUrl: dto.returnUrl,
     });
   }
 
@@ -82,17 +80,22 @@ export class BillingController {
   @RawResponse()
   @Get('billing/fake-checkout/:reference')
   @ApiExcludeEndpoint()
-  public fakeCheckout(@Param('reference') reference: string, @Res() res: Response) {
+  public fakeCheckout(@Param('reference') reference: string, @Query() query: Record<string, unknown>, @Res() res: Response) {
     this.orders.assertFakeEnabled();
     const safe = reference.replace(/[^A-Z0-9-]/gi, '');
+    // Paramètres de retour réémis tels quels (échappés) : vérifiés par signature à la décision.
+    const keep = new URLSearchParams(
+      Object.entries(query).filter((e): e is [string, string] => ['ok', 'ko', 'sig'].includes(e[0]) && typeof e[1] === 'string'),
+    ).toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const suffix = keep ? `?${keep}` : '';
     res.type('html').send(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Paiement simulé</title><style>body{font-family:system-ui,sans-serif;background:#0f0b14;color:#f4eff8;display:grid;place-items:center;min-height:100vh;margin:0}
 main{background:#18131f;border:1px solid #2f2639;border-radius:16px;padding:24px;max-width:360px;width:calc(100% - 32px)}h1{font-size:20px;margin:0 0 8px}
 p{color:#a99db6;font-size:14px}form{display:inline}button{border:0;border-radius:10px;padding:12px 18px;font-size:16px;margin:8px 8px 0 0;cursor:pointer}
 .pay{background:#e0325e;color:#fff}.cancel{background:#231c2c;color:#f4eff8}</style></head><body><main>
 <h1>Paiement simulé</h1><p>Environnement de test : aucun argent réel. Commande <strong>${safe}</strong>.</p>
-<form method="post" action="${safe}/PAID"><button class="pay">Payer</button></form>
-<form method="post" action="${safe}/CANCELLED"><button class="cancel">Annuler</button></form>
+<form method="post" action="${safe}/PAID${suffix}"><button class="pay">Payer</button></form>
+<form method="post" action="${safe}/CANCELLED${suffix}"><button class="cancel">Annuler</button></form>
 </main></body></html>`);
   }
 
@@ -103,11 +106,17 @@ p{color:#a99db6;font-size:14px}form{display:inline}button{border:0;border-radius
   public async fakeCheckoutDecide(
     @Param('reference') reference: string,
     @Param('outcome') outcome: string,
+    @Query() query: Record<string, unknown>,
     @Res() res: Response,
   ) {
     this.orders.assertFakeEnabled();
     const decided = outcome === 'PAID' ? 'PAID' : 'CANCELLED';
     const result = await this.notifications.simulate(reference, decided);
+    const back = this.orders.simulatedReturnUrl(reference, decided, query);
+    if (back) {
+      res.redirect(303, back);
+      return;
+    }
     res.type('html').send(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paiement simulé</title></head>
 <body style="font-family:system-ui;background:#0f0b14;color:#f4eff8;display:grid;place-items:center;min-height:100vh;margin:0">
 <main style="text-align:center"><h1>${decided === 'PAID' ? 'Paiement accepté' : 'Paiement annulé'}</h1><p>Résultat : ${result}. Vous pouvez revenir à l’application.</p></main></body></html>`);
@@ -163,18 +172,5 @@ p{color:#a99db6;font-size:14px}form{display:inline}button{border:0;border-radius
   @ApiOperation({ summary: 'Commande : historique et notifications reçues' })
   public adminOrder(@Param('id', ParseUUIDPipe) id: string) {
     return this.orders.adminGet(id);
-  }
-
-  /** Retour après paiement : origine autorisée (CORS) ou schéma de l'application, sinon ignoré. */
-  private safeReturnUrl(url?: string): string | undefined {
-    if (!url) return undefined;
-    try {
-      const parsed = new URL(url);
-      if (['gaatshort:', 'exp:'].includes(parsed.protocol)) return url;
-      const origins = [...this.config.app.corsOrigins, this.config.app.frontendUrl].map((o) => o.replace(/\/$/, ''));
-      return origins.includes(parsed.origin) ? url : undefined;
-    } catch {
-      return undefined;
-    }
   }
 }

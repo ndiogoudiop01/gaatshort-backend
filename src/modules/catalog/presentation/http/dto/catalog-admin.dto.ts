@@ -126,3 +126,12 @@ export class StorefrontSeriesQueryDto {
   @ApiPropertyOptional({ enum: ['HIDDEN', 'LIVE'] }) @IsOptional() @IsIn(['HIDDEN', 'LIVE']) public status?: 'HIDDEN' | 'LIVE';
 }
 
+
+export class CatalogImportDto {
+  @ApiProperty({
+    description: 'Contenu CSV (UTF-8, séparateur « , » ou « ; »). Une ligne par épisode ; colonnes : series_slug, series_title, synopsis, genres (slugs séparés par |), maturity_rating, release_year, free_episodes, episode_price_coins, poster_url, banner_url, episode_number, episode_title, episode_price_override, video_url.',
+  })
+  @IsString() @MinLength(1) @MaxLength(900_000) public csv: string;
+  @ApiPropertyOptional({ default: true, description: 'Vrai : analyse et rapport, aucune écriture.' })
+  @IsOptional() @IsBoolean() public dryRun?: boolean;
+}

@@ -73,9 +73,18 @@ describe('PaytechProvider — demande de paiement', () => {
 describe('FakePaymentProvider', () => {
   const p = new FakePaymentProvider(CONFIG);
 
-  it('sert sa page de paiement sur l’API', async () => {
-    const c = await p.createCheckout({ reference: 'GS-C', amountMinor: 500, currencyCode: 'XOF', itemName: 'x', ipnUrl: '', successUrl: '', cancelUrl: '' });
-    expect(c.redirectUrl).toBe('http://api.test/api/v1/billing/fake-checkout/GS-C');
+  it('sert sa page de paiement sur l’API, avec un retour signé', async () => {
+    const ok = 'https://kaay.gaatshort.com/boutique/retour?reference=GS-C&status=success';
+    const ko = 'https://kaay.gaatshort.com/boutique/retour?reference=GS-C&status=cancel';
+    const c = await p.createCheckout({ reference: 'GS-C', amountMinor: 500, currencyCode: 'XOF', itemName: 'x', ipnUrl: '', successUrl: ok, cancelUrl: ko });
+    const url = new URL(c.redirectUrl);
+    expect(`${url.origin}${url.pathname}`).toBe('http://api.test/api/v1/billing/fake-checkout/GS-C');
+    const query = Object.fromEntries(url.searchParams);
+    expect(p.simulatedReturnUrl('GS-C', 'PAID', query)).toBe(ok);
+    expect(p.simulatedReturnUrl('GS-C', 'CANCELLED', query)).toBe(ko);
+    expect(p.simulatedReturnUrl('GS-C', 'PAID', { ...query, ok: 'https://evil.example' })).toBeNull();
+    expect(p.simulatedReturnUrl('GS-OTHER', 'PAID', query)).toBeNull();
+    expect(p.simulatedReturnUrl('GS-C', 'PAID', { ok })).toBeNull();
   });
 
   it('une notification simulée signée est valide ; altérée, elle est refusée', () => {

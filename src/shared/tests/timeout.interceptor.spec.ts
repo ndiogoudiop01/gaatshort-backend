@@ -1,6 +1,8 @@
 import { RequestTimeoutException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { delay } from 'rxjs/operators';
+import { Reflector } from '@nestjs/core';
+import { RequestTimeout } from '../decorators/request-timeout.decorator';
 import { TimeoutInterceptor } from '../interceptors/timeout.interceptor';
 
 describe('TimeoutInterceptor', () => {
@@ -30,5 +32,20 @@ describe('TimeoutInterceptor', () => {
     await expect(new Promise((_, reject) => observable.subscribe({ error: reject }))).rejects.toThrow(
       'échec applicatif',
     );
+  });
+
+  it('une route peut déclarer un délai plus long (@RequestTimeout)', async () => {
+    class Ctrl {
+      @RequestTimeout(500)
+      public long(this: void) {}
+      public short(this: void) {}
+    }
+    const interceptor = new TimeoutInterceptor(20, new Reflector());
+    const ctx = (name: 'long' | 'short') => ({ getHandler: () => Ctrl.prototype[name], getClass: () => Ctrl }) as never;
+    const slow = () => ({ handle: () => of('lent').pipe(delay(60)) });
+    await expect(new Promise((resolve) => interceptor.intercept(ctx('long'), slow()).subscribe(resolve))).resolves.toBe('lent');
+    await expect(
+      new Promise((_, reject) => interceptor.intercept(ctx('short'), slow()).subscribe({ error: reject })),
+    ).rejects.toBeInstanceOf(RequestTimeoutException);
   });
 });

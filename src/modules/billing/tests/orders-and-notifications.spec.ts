@@ -7,7 +7,8 @@ import { PacksService } from '../application/packs.service';
 import type { PaymentProviderPort, VerifiedNotification } from '../domain/ports/payment-provider.port';
 
 const CONFIG = {
-  app: { publicUrl: 'http://api.test', globalPrefix: 'api', frontendUrl: 'http://web.test' },
+  app: { publicUrl: 'http://api.test', globalPrefix: 'api', frontendUrl: 'http://web.test', corsOrigins: ['http://bo.test'] },
+  tenancy: { rootDomain: 'gaatshort.com' },
   payment: { orderTtlMinutes: 30, paytech: {} },
 } as unknown as AppConfigService;
 
@@ -56,9 +57,51 @@ describe('OrdersService', () => {
     const data = client.order.create.mock.calls[0][0].data;
     expect(data).toMatchObject({ coins: 200, bonusCoins: 20, amountMinor: 2000, provider: 'FAKE' });
     expect(createCheckout).toHaveBeenCalledWith(expect.objectContaining({
-      amountMinor: 2000, ipnUrl: 'http://api.test/api/v1/webhooks/paytech', successUrl: 'gaatshort://boutique?status=success',
+      amountMinor: 2000, ipnUrl: 'http://api.test/api/v1/webhooks/paytech',
+      successUrl: expect.stringMatching(/^gaatshort:\/\/boutique\?reference=GS-[A-Z0-9]{10}&status=success$/),
     }));
     expect(client.order.updateMany).toHaveBeenCalledWith({ where: { id: 'o-2' }, data: { providerToken: 'tok', redirectUrl: 'http://pay/tok' } });
+  });
+
+  it('URL de retour : seulement chez nous, sinon FRONTEND_URL ; la référence est toujours jointe', async () => {
+    const { prisma, client } = prismaMock();
+    const s = new OrdersService(prisma, CONFIG, tenantContext() as never, provider());
+    client.tenantDomain.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'd' });
+    await expect(s.allowedReturnUrl(undefined)).resolves.toBeUndefined();
+    await expect(s.allowedReturnUrl('pas une url')).resolves.toBeUndefined();
+    await expect(s.allowedReturnUrl('javascript:alert(1)')).resolves.toBeUndefined();
+    await expect(s.allowedReturnUrl('gaatshort://boutique')).resolves.toBe('gaatshort://boutique');
+    await expect(s.allowedReturnUrl('http://bo.test/x')).resolves.toBe('http://bo.test/x');
+    await expect(s.allowedReturnUrl('http://kaay.gaatshort.com/r')).resolves.toBeUndefined(); // https exigé hors origines configurées
+    await expect(s.allowedReturnUrl('https://kaay.gaatshort.com/r')).resolves.toBe('https://kaay.gaatshort.com/r');
+    await expect(s.allowedReturnUrl('https://gaatshort.com.evil.example/r')).resolves.toBeUndefined();
+    await expect(s.allowedReturnUrl('https://evil.example/r')).resolves.toBeUndefined(); // domaine inconnu
+    await expect(s.allowedReturnUrl('https://kaaydrama.sn/r')).resolves.toBe('https://kaaydrama.sn/r'); // domaine vérifié de la marque
+    expect(client.tenantDomain.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ domain: 'kaaydrama.sn', verifiedAt: { not: null } }),
+    }));
+
+    client.order.findFirst.mockResolvedValueOnce(null);
+    client.coinPack.findFirst.mockResolvedValueOnce(PACK);
+    client.order.create.mockResolvedValueOnce({ id: 'o-9' });
+    client.order.findFirstOrThrow.mockResolvedValueOnce({ id: 'o-9' });
+    client.tenantDomain.findFirst.mockResolvedValueOnce(null);
+    const pay = provider();
+    const s2 = new OrdersService(prisma, CONFIG, tenantContext() as never, pay);
+    await s2.create({ accountId: 'a', packId: 'p-1', idempotencyKey: 'k', returnUrl: 'https://evil.example/r' });
+    const req = (pay.createCheckout as jest.Mock).mock.calls[0][0];
+    expect(req.successUrl).toMatch(/^http:\/\/web\.test\/boutique\/retour\?reference=GS-[A-Z0-9]{10}&status=success$/);
+    expect(req.cancelUrl).toContain('status=cancel');
+  });
+
+  it('retour de la page simulée : délégué au pilote factice, refusé sinon', () => {
+    const { prisma } = prismaMock();
+    const fake = { ...provider(), simulatedReturnUrl: jest.fn(() => 'https://r') };
+    expect(new OrdersService(prisma, CONFIG, tenantContext() as never, fake).simulatedReturnUrl('GS-X', 'PAID', { ok: 'a' })).toBe('https://r');
+    const noReturn = provider();
+    expect(new OrdersService(prisma, CONFIG, tenantContext() as never, noReturn).simulatedReturnUrl('GS-X', 'PAID', {})).toBeNull();
+    const paytech = { ...provider(), name: 'PAYTECH' as const };
+    expect(() => new OrdersService(prisma, CONFIG, tenantContext() as never, paytech).simulatedReturnUrl('GS-X', 'PAID', {})).toThrow();
   });
 
   it('pack inconnu → 404 ; paiement indisponible → commande FAILED', async () => {
