@@ -27,6 +27,8 @@ async function bootstrap(): Promise<void> {
   // Il fait aussi passer TOUTES les lignes (Nest, use cases, filtres) par le
   // Pino configuré : JSON structuré, corrélé, expurgé.
   app.useLogger(app.get(PinoLogger));
+  // 1 Mo (au lieu de 100 Ko) : l'import CSV du catalogue (BO-17) tient dans le corps JSON.
+  app.useBodyParser('json', { limit: '1mb' });
 
   const config = app.get(AppConfigService);
   const reflector = app.get(Reflector);

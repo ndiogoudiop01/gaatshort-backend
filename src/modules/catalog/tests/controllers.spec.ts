@@ -10,7 +10,11 @@ describe('AdminCatalogController', () => {
   it('relaie chaque route au service, champ par champ, avec l’acteur', async () => {
     const catalog = anyFn();
     const media = anyFn();
-    const c = new AdminCatalogController(catalog as never, media as never);
+    const importer = anyFn();
+    const c = new AdminCatalogController(catalog as never, media as never, importer as never);
+    await c.importCatalog({ csv: 'x' }, USER);
+    await c.importCatalog({ csv: 'y', dryRun: false }, USER);
+    expect(importer.import.mock.calls).toEqual([[{ userId: 'u-1' }, 'x', true], [{ userId: 'u-1' }, 'y', false]]);
     await c.listGenres();
     await c.createGenre({ slug: 'a', nameFr: 'A', nameEn: 'A' }, USER);
     await c.updateGenre(ID, { position: 1 }, USER);

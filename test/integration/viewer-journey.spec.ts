@@ -206,5 +206,26 @@ describe('Parcours spectateur (de bout en bout)', () => {
     await http().post(`/admin/episodes/${ep.body.data.id}/video/upload`, {}, admin).expect(201);
     await http().post(`/admin/episodes/${ep.body.data.id}/publish`, {}, admin).expect(200);
     await http().post(`/admin/series/${sid}/publish`, {}, admin).expect(422); // pas de licence
+
+    // Import en lot : essai à blanc, import réel, puis rejeu sans effet (idempotence).
+    const csv = [
+      'series_title;genres;free_episodes;episode_number;episode_title;video_url',
+      'Import de test;drame|inexistant;2;1;Ouverture;https://src.example/1.mp4',
+      'Import de test;;;2;;https://src.example/2.mp4',
+      'Le Pacte de Ngor;;;13;Bonus;',
+    ].join('\n');
+    const dry = await http().post('/admin/catalog/import', { csv }, admin).expect(200);
+    expect(dry.body.data).toMatchObject({ dryRun: true, totals: { seriesCreated: 1, episodesCreated: 3, videosQueued: 2, errors: 0 } });
+    expect(await owner.series.count({ where: { slug: 'import-de-test' } })).toBe(0);
+    const real = await http().post('/admin/catalog/import', { csv, dryRun: false }, admin).expect(200);
+    expect(real.body.data.totals).toMatchObject({ seriesCreated: 1, episodesCreated: 3, videosQueued: 2, errors: 0 });
+    const imported = await owner.series.findUniqueOrThrow({ where: { slug: 'import-de-test' }, include: { episodes: { include: { video: true } }, genres: true } });
+    expect(imported).toMatchObject({ status: 'DRAFT', freeEpisodes: 2 });
+    expect(imported.genres).toHaveLength(1);
+    expect(imported.episodes.map((e) => e.video?.status).sort()).toEqual(['READY', 'READY']);
+    const again = await http().post('/admin/catalog/import', { csv, dryRun: false }, admin).expect(200);
+    expect(again.body.data.totals).toMatchObject({ seriesCreated: 0, seriesUpdated: 0, episodesCreated: 0, episodesUpdated: 0, videosQueued: 0, videosAlreadyPresent: 2 });
+    // Le spectateur ne peut pas importer.
+    await http().post('/admin/catalog/import', { csv }, token).expect(403);
   });
 });

@@ -4,9 +4,10 @@ import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RequirePermissions } from '@shared/decorators/permissions.decorator';
 import type { AuthenticatedUser } from '@shared/kernel/types/authenticated-user';
 import { CatalogAdminService } from '../../application/catalog-admin.service';
+import { CatalogImportService } from '../../application/catalog-import.service';
 import { MediaService } from '../../application/media.service';
 import {
-  BulkEpisodesDto, CreateEpisodeDto, CreateSeriesDto, GenreDto, IngestVideoDto, LicenseDto, ListSeriesQueryDto,
+  BulkEpisodesDto, CatalogImportDto, CreateEpisodeDto, CreateSeriesDto, GenreDto, IngestVideoDto, LicenseDto, ListSeriesQueryDto,
   SeriesBodyDto, StorefrontSeriesQueryDto, SubtitleDto, TenantSeriesDto, UpdateEpisodeDto, UpdateGenreDto, UpdateLicenseDto,
 } from './dto/catalog-admin.dto';
 
@@ -19,7 +20,18 @@ export class AdminCatalogController {
   constructor(
     private readonly catalog: CatalogAdminService,
     private readonly media: MediaService,
+    private readonly importer: CatalogImportService,
   ) {}
+
+  // ── Import en lot (BO-17) ──
+  @Post('catalog/import') @HttpCode(200) @RequirePermissions('catalog:write', 'media:upload')
+  @ApiOperation({
+    summary: 'Importer séries et épisodes depuis un CSV',
+    description: 'Idempotent (série par slug, épisode par numéro ; une vidéo déjà présente n’est pas réimportée). `dryRun` (par défaut) : rapport sans écriture. Les séries créées restent en brouillon.',
+  })
+  public importCatalog(@Body() dto: CatalogImportDto, @CurrentUser() u: AuthenticatedUser) {
+    return this.importer.import(actor(u), dto.csv, dto.dryRun ?? true);
+  }
 
   // ── Genres ──
   @Get('genres') @RequirePermissions('catalog:read') @ApiOperation({ summary: 'Genres (avec nombre de séries)' })

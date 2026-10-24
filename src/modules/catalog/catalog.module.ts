@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppConfigService } from '@config/app-config.service';
 import { CATALOG_FACADE } from './catalog.facade';
 import { CatalogAdminService } from './application/catalog-admin.service';
+import { CatalogImportService } from './application/catalog-import.service';
 import { CatalogQueryService } from './application/catalog-query.service';
 import { MediaService } from './application/media.service';
 import { VIDEO_PROVIDER } from './domain/ports/video-provider.port';
@@ -15,6 +16,7 @@ import { MediaWebhookController } from './presentation/http/media-webhook.contro
   controllers: [AdminCatalogController, MediaWebhookController],
   providers: [
     CatalogAdminService,
+    CatalogImportService,
     CatalogQueryService,
     MediaService,
     {
