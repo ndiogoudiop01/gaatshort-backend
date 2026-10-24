@@ -61,6 +61,18 @@ Pour passer au réel : `VIDEO_DRIVER=bunny` (+ `BUNNY_*`, webhook d'encodage
 staging** avant la production : jeton de lecture Bunny (HS256, mode répertoire) et vérification de
 l'IPN PayTech (`hmac_compute`) avec un vrai paiement.
 
+### Numéros de test (connexion sans SMS)
+
+Définis par `AUTH_TEST_PHONES` (voir `.env.example`) ; le code est fixe, aucun SMS n'est envoyé, l'expiration et la limite d'essais s'appliquent.
+
+| Numéro | Code |
+|---|---|
+| +221 70 000 00 01 | 111111 |
+| +221 70 000 00 02 | 222222 |
+| +221 70 000 00 03 | 333333 |
+
+Interdits en production, sauf `AUTH_TEST_PHONES_IN_PRODUCTION=true` (comptes de relecture Apple / Google) — à retirer après la relecture.
+
 ## API (résumé)
 
 Toutes les routes sont sous `/api/v1` ; la marque vient du domaine, du jeton, ou de l'en-tête
