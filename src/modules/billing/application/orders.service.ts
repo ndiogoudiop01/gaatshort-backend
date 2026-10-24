@@ -16,6 +16,13 @@ export function newOrderReference(): string {
   return `GS-${Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join('')}`;
 }
 
+/** Ajoute des paramètres de requête, y compris à une URL de schéma applicatif (`gaatshort://boutique`). */
+export function withParams(url: string, params: Record<string, string>): string {
+  const u = new URL(url);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  return u.toString();
+}
+
 const publicOrder = {
   id: true, reference: true, status: true, coins: true, bonusCoins: true, currencyCode: true, amountMinor: true,
   provider: true, paymentMethod: true, redirectUrl: true, expiresAt: true, paidAt: true, createdAt: true,
@@ -34,6 +41,35 @@ export class OrdersService {
     @Inject(TENANT_CONTEXT) private readonly tenant: TenantContextPort,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProviderPort,
   ) {}
+
+  /**
+   * Adresse de retour après paiement, acceptée seulement si elle mène chez NOUS : schéma de
+   * l'application mobile, origine configurée (CORS, FRONTEND_URL), sous-domaine de la racine
+   * des marques, ou domaine personnalisé VÉRIFIÉ de la marque courante. Sinon : `undefined`
+   * (repli sur FRONTEND_URL) — jamais de redirection ouverte vers un site tiers.
+   */
+  public async allowedReturnUrl(url?: string): Promise<string | undefined> {
+    if (!url) return undefined;
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return undefined;
+    }
+    if (['gaatshort:', 'exp:'].includes(parsed.protocol)) return url;
+    if (!['https:', 'http:'].includes(parsed.protocol)) return undefined;
+    const origins = [...this.config.app.corsOrigins, this.config.app.frontendUrl].map((o) => o.replace(/\/$/, ''));
+    if (origins.includes(parsed.origin)) return url;
+    if (parsed.protocol !== 'https:') return undefined;
+    const host = parsed.hostname.toLowerCase();
+    const root = this.config.tenancy.rootDomain.toLowerCase();
+    if (host === root || host.endsWith(`.${root}`)) return url;
+    const domain = await this.prisma.client.tenantDomain.findFirst({
+      where: { tenantId: this.tenant.tenantId, domain: host, verifiedAt: { not: null } },
+      select: { id: true },
+    });
+    return domain ? url : undefined;
+  }
 
   public async create(p: { accountId: string; packId: string; idempotencyKey: string; returnUrl?: string }) {
     const existing = await this.prisma.client.order.findFirst({
@@ -64,8 +100,8 @@ export class OrdersService {
     });
 
     const api = `${this.config.app.publicUrl.replace(/\/$/, '')}/${this.config.app.globalPrefix}/v1`;
-    const fallbackReturn = `${this.config.app.frontendUrl.replace(/\/$/, '')}/boutique/retour?reference=${reference}`;
-    const returnUrl = p.returnUrl ?? fallbackReturn;
+    // La référence accompagne TOUJOURS le retour : c'est elle que la page interroge.
+    const returnUrl = (await this.allowedReturnUrl(p.returnUrl)) ?? `${this.config.app.frontendUrl.replace(/\/$/, '')}/boutique/retour`;
     try {
       const checkout = await this.provider.createCheckout({
         reference,
@@ -73,8 +109,8 @@ export class OrdersService {
         currencyCode: pack.currencyCode,
         itemName: `${pack.coins + pack.bonusCoins} crédits`,
         ipnUrl: `${api}/webhooks/paytech`,
-        successUrl: this.config.payment.paytech.successUrl ?? `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}status=success`,
-        cancelUrl: this.config.payment.paytech.cancelUrl ?? `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}status=cancel`,
+        successUrl: this.config.payment.paytech.successUrl ?? withParams(returnUrl, { reference, status: 'success' }),
+        cancelUrl: this.config.payment.paytech.cancelUrl ?? withParams(returnUrl, { reference, status: 'cancel' }),
       });
       await this.prisma.client.order.updateMany({
         where: { id: order.id },
@@ -133,6 +169,12 @@ export class OrdersService {
       this.prisma.client.paymentProviderEvent.findMany({ where: { orderReference: order.reference }, orderBy: { receivedAt: 'asc' } }),
     ]);
     return { ...order, account, events };
+  }
+
+  /** Page de paiement simulée : où renvoyer le visiteur (null si l'adresse n'est pas signée). */
+  public simulatedReturnUrl(reference: string, outcome: 'PAID' | 'CANCELLED', query: Record<string, unknown>): string | null {
+    this.assertFakeEnabled();
+    return this.provider.simulatedReturnUrl?.(reference, outcome, query) ?? null;
   }
 
   public assertFakeEnabled() {

@@ -19,10 +19,26 @@ export class FakePaymentProvider implements PaymentProviderPort {
 
   public createCheckout(req: CheckoutRequest): Promise<{ token: string; redirectUrl: string }> {
     const base = `${this.config.app.publicUrl.replace(/\/$/, '')}/${this.config.app.globalPrefix}/v1`;
+    // Comme PayTech, la page renvoie ensuite vers success_url / cancel_url : signées ici pour
+    // qu'une URL de page simulée fabriquée à la main ne puisse rediriger nulle part ailleurs.
+    const query = new URLSearchParams({ ok: req.successUrl, ko: req.cancelUrl, sig: this.signReturn(req.reference, req.successUrl, req.cancelUrl) });
     return Promise.resolve({
       token: `fake-${randomUUID()}`,
-      redirectUrl: `${base}/billing/fake-checkout/${encodeURIComponent(req.reference)}`,
+      redirectUrl: `${base}/billing/fake-checkout/${encodeURIComponent(req.reference)}?${query.toString()}`,
     });
+  }
+
+  public simulatedReturnUrl(reference: string, outcome: 'PAID' | 'CANCELLED', query: Record<string, unknown>): string | null {
+    const { ok, ko, sig } = query;
+    if (typeof ok !== 'string' || typeof ko !== 'string' || typeof sig !== 'string') return null;
+    const expected = Buffer.from(this.signReturn(reference, ok, ko));
+    const given = Buffer.from(sig);
+    if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+    return outcome === 'PAID' ? ok : ko;
+  }
+
+  private signReturn(reference: string, ok: string, ko: string): string {
+    return createHmac('sha256', this.config.auth.accessSecret).update(`return|${reference}|${ok}|${ko}`).digest('hex');
   }
 
   public signSimulation(reference: string, outcome: 'PAID' | 'CANCELLED', amountMinor: number): string {
