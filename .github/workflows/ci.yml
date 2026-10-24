@@ -106,7 +106,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          grep -nE '●|FAIL |Error|error TS|Cannot|ECONN|Timeout' integration.log | head -40 \
+          grep -A40 '  ● ' integration.log | grep -vE 'ECONN|^\s*$' | head -90 \
             | while IFS= read -r line; do echo "::error title=integration::${line:0:900}"; done
           tail -60 integration.log >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
