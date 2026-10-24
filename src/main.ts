@@ -55,7 +55,7 @@ async function bootstrap(): Promise<void> {
 
   app.useGlobalInterceptors(
     new LoggerErrorInterceptor(), // journalise l'exception AVEC sa stack via Pino
-    new TimeoutInterceptor(15_000),
+    new TimeoutInterceptor(15_000, reflector),
     new ResponseEnvelopeInterceptor(reflector),
   );
   app.useGlobalFilters(new AllExceptionsFilter(config.app.isProduction));

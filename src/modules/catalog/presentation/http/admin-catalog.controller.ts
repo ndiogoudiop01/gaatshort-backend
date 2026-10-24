@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, P
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RequirePermissions } from '@shared/decorators/permissions.decorator';
+import { RequestTimeout } from '@shared/decorators/request-timeout.decorator';
 import type { AuthenticatedUser } from '@shared/kernel/types/authenticated-user';
 import { CatalogAdminService } from '../../application/catalog-admin.service';
 import { CatalogImportService } from '../../application/catalog-import.service';
@@ -24,10 +25,10 @@ export class AdminCatalogController {
   ) {}
 
   // ── Import en lot (BO-17) ──
-  @Post('catalog/import') @HttpCode(200) @RequirePermissions('catalog:write', 'media:upload')
+  @Post('catalog/import') @HttpCode(200) @RequirePermissions('catalog:write', 'media:upload') @RequestTimeout(120_000)
   @ApiOperation({
     summary: 'Importer séries et épisodes depuis un CSV',
-    description: 'Idempotent (série par slug, épisode par numéro ; une vidéo déjà présente n’est pas réimportée). `dryRun` (par défaut) : rapport sans écriture. Les séries créées restent en brouillon.',
+    description: 'Idempotent (série par slug, épisode par numéro ; une vidéo déjà présente n’est pas réimportée). `dryRun` (par défaut) : rapport sans écriture. Les séries créées restent en brouillon. 1 000 lignes au plus par fichier.',
   })
   public importCatalog(@Body() dto: CatalogImportDto, @CurrentUser() u: AuthenticatedUser) {
     return this.importer.import(actor(u), dto.csv, dto.dryRun ?? true);

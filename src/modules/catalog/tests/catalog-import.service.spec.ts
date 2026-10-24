@@ -106,6 +106,27 @@ describe('CatalogImportService', () => {
     r = await s.import(ACTOR, CSV, false);
     expect(r.rows[0]).toMatchObject({ episode: 'CREATED', video: 'ERROR', message: 'Bunny indisponible' });
     expect(r.rows[1]).toMatchObject({ video: 'QUEUED' });
+    expect(r.totals).toMatchObject({ videosQueued: 1, errors: 1 });
+  });
+
+  it('vidéos lancées en parallèle, 6 au plus à la fois', async () => {
+    const { s, client, media } = setup();
+    const lines = ['series_title,episode_number,video_url', ...Array.from({ length: 20 }, (_, i) => `Série,${i + 1},https://src.test/${i + 1}.mp4`)];
+    client.series.findUnique.mockResolvedValueOnce(null);
+    client.episode.findMany.mockResolvedValueOnce([]);
+    let active = 0;
+    let peak = 0;
+    media.ingestEpisodeFromUrl.mockImplementation(async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 5));
+      active--;
+      return {};
+    });
+    const r = await s.import(ACTOR, lines.join('\n'), false);
+    expect(media.ingestEpisodeFromUrl).toHaveBeenCalledTimes(20);
+    expect(peak).toBe(6);
+    expect(r.totals.videosQueued).toBe(20);
   });
 
   it('fichier invalide : rapport d’erreurs, aucune lecture en base', async () => {

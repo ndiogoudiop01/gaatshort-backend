@@ -12,7 +12,8 @@ export const IMPORT_COLUMNS = [
   'episode_number', 'episode_title', 'episode_price_override', 'video_url',
 ] as const;
 
-export const MAX_IMPORT_ROWS = 3000;
+/** Au-delà, découper le fichier : l'import tient dans une requête (2 min, vidéos en parallèle). */
+export const MAX_IMPORT_ROWS = 1000;
 
 export interface SeriesFields {
   slug: string;

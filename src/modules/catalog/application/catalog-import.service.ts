@@ -73,9 +73,22 @@ export class CatalogImportService {
       report.warnings.push({ line: 1, message: `Genres inconnus ignorés : ${unknownGenres.join(', ')} (créez-les d’abord)` });
     }
 
+    const ingests: IngestJob[] = [];
     for (const plan of plans) {
-      await this.importSeries(actor, plan, genreId, dryRun, report);
+      await this.importSeries(actor, plan, genreId, dryRun, report, ingests);
     }
+    // Les vidéos partent en parallèle (le fournisseur télécharge et encode de son côté) :
+    // c'est ce qui permet à un fichier de 1 000 lignes de tenir dans la requête.
+    await runPool(ingests, INGEST_CONCURRENCY, async (job) => {
+      try {
+        await this.media.ingestEpisodeFromUrl(actor, job.episodeId, job.url);
+      } catch (e) {
+        job.row.video = 'ERROR';
+        job.row.message = errorMessage(e);
+        report.totals.videosQueued--;
+        this.logger.warn(`Import ligne ${job.row.line} : vidéo non lancée (${job.row.message})`);
+      }
+    });
     report.totals.rows = report.rows.length;
     report.totals.errors = report.errors.length + report.rows.filter((r) => r.episode === 'ERROR' || r.video === 'ERROR').length;
 
@@ -87,7 +100,9 @@ export class CatalogImportService {
     return report;
   }
 
-  private async importSeries(actor: Actor, plan: SeriesPlan, genreId: Map<string, string>, dryRun: boolean, report: ImportReport) {
+  private async importSeries(
+    actor: Actor, plan: SeriesPlan, genreId: Map<string, string>, dryRun: boolean, report: ImportReport, ingests: IngestJob[],
+  ) {
     const { series: fields } = plan;
     const genreIds = fields.genreSlugs?.map((g) => genreId.get(g)).filter((id): id is string => !!id);
     const input = { ...seriesInput(fields), ...(genreIds?.length ? { genreIds } : {}) };
@@ -160,19 +175,38 @@ export class CatalogImportService {
             row.video = 'ALREADY_PRESENT';
             report.totals.videosAlreadyPresent++;
           } else {
-            if (!dryRun && episodeId) await this.media.ingestEpisodeFromUrl(actor, episodeId, ep.videoUrl);
+            if (!dryRun && episodeId) ingests.push({ row, episodeId, url: ep.videoUrl });
             row.video = 'QUEUED';
             report.totals.videosQueued++;
           }
         }
       } catch (e) {
         row.message = errorMessage(e);
-        if (row.episode === 'UNCHANGED' || !ep.videoUrl) row.episode = 'ERROR';
-        else row.video = 'ERROR';
+        row.episode = 'ERROR';
         this.logger.warn(`Import ligne ${ep.line} (${fields.slug} #${ep.number}) : ${row.message}`);
       }
     }
   }
+}
+
+const INGEST_CONCURRENCY = 6;
+
+interface IngestJob {
+  row: ImportRowResult;
+  episodeId: string;
+  url: string;
+}
+
+/** Exécute `run` sur chaque élément, `size` à la fois au plus. */
+async function runPool<T>(items: T[], size: number, run: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const item = items[next++];
+      await run(item);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
 }
 
 function seriesInput(f: SeriesFields) {
