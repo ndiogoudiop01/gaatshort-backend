@@ -73,7 +73,7 @@ Toutes les routes sont sous `/api/v1` ; la marque vient du domaine, du jeton, ou
 | Lecture | `GET /episodes/:id/playback` (403 `EPISODE_LOCKED`) · `POST /episodes/:id/unlock` (409 `INSUFFICIENT_BALANCE`) · `PUT /episodes/:id/progress` |
 | Bibliothèque | `GET /me/continue-watching` · `GET/POST/DELETE /me/favorites` |
 | Crédits | `GET /wallet` · `GET /wallet/ledger` · `GET /billing/packs` · `POST /billing/orders` (`Idempotency-Key`) · `GET /billing/orders/:ref` |
-| Back-office | `/admin/series`, `/admin/episodes`, `/admin/genres`, `/admin/licenses`, `/admin/storefront/series`, `/admin/packs`, `/admin/orders`, `/admin/viewers`, `/admin/dashboard`, `/admin/users`, `/admin/roles`, `/admin/tenants` |
+| Back-office | `/admin/series`, `/admin/episodes`, `/admin/genres`, `/admin/catalog/import` (CSV, essai à blanc par défaut), `/admin/licenses`, `/admin/storefront/series`, `/admin/packs`, `/admin/orders`, `/admin/viewers`, `/admin/dashboard`, `/admin/users`, `/admin/roles`, `/admin/tenants` |
 
 Rôles : `VIEWER` (spectateur), `CONTENT_MANAGER`, `SUPPORT`, `ADMIN` (marque), `SUPER_ADMIN`.
 
