@@ -190,6 +190,23 @@ describe('MediaService', () => {
     expect(client.episode.updateMany).toHaveBeenCalledWith({ where: { videoAssetId: 'm-1', durationSeconds: null }, data: { durationSeconds: 120 } });
   });
 
+  it('remplacer la vidéo retire la miniature de l’ancienne, garde une miniature posée à la main', async () => {
+    const { m, client } = media('BUNNY_STREAM');
+    client.mediaAsset.findUnique.mockResolvedValueOnce({ id: 'old', providerRef: 'old-ref', thumbnailUrl: 'https://cdn/old.jpg' });
+    client.episode.findUnique
+      .mockResolvedValueOnce({ id: 'e', number: 3, videoAssetId: 'old', series: { slug: 'serie' } })
+      .mockResolvedValueOnce({ thumbnailUrl: 'https://cdn/old.jpg' });
+    await m.ingestEpisodeFromUrl(ACTOR, 'e', 'https://src');
+    expect(client.episode.update).toHaveBeenLastCalledWith({ where: { id: 'e' }, data: { videoAssetId: 'm-1', durationSeconds: null, thumbnailUrl: null } });
+
+    client.mediaAsset.findUnique.mockResolvedValueOnce({ id: 'old', providerRef: 'old-ref', thumbnailUrl: 'https://cdn/old.jpg' });
+    client.episode.findUnique
+      .mockResolvedValueOnce({ id: 'e', number: 3, videoAssetId: 'old', series: { slug: 'serie' } })
+      .mockResolvedValueOnce({ thumbnailUrl: 'https://cdn/affiche-maison.jpg' });
+    await m.ingestEpisodeFromUrl(ACTOR, 'e', 'https://src');
+    expect(client.episode.update).toHaveBeenLastCalledWith({ where: { id: 'e' }, data: { videoAssetId: 'm-1', durationSeconds: null } });
+  });
+
   it('Bunny : renvoie le ticket TUS ; import par URL', async () => {
     const { m } = media('BUNNY_STREAM');
     await expect(m.createEpisodeUpload(ACTOR, 'e')).resolves.toMatchObject({ upload: { endpoint: 'https://tus', headers: { a: 'b' } } });

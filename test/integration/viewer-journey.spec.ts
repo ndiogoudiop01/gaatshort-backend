@@ -79,6 +79,7 @@ describe('Parcours spectateur (de bout en bout)', () => {
       get: (p: string, token?: string) => withAuth(request(srv).get(`/api/v1${p}`).set('x-tenant-id', tenant), token),
       post: (p: string, body: object = {}, token?: string) => withAuth(request(srv).post(`/api/v1${p}`).set('x-tenant-id', tenant).send(body), token),
       put: (p: string, body: object = {}, token?: string) => withAuth(request(srv).put(`/api/v1${p}`).set('x-tenant-id', tenant).send(body), token),
+      patch: (p: string, body: object = {}, token?: string) => withAuth(request(srv).patch(`/api/v1${p}`).set('x-tenant-id', tenant).send(body), token),
     };
   };
   const withAuth = (r: request.Test, token?: string) => (token ? r.set('authorization', `Bearer ${token}`) : r);
@@ -206,6 +207,22 @@ describe('Parcours spectateur (de bout en bout)', () => {
     await http().post(`/admin/episodes/${ep.body.data.id}/video/upload`, {}, admin).expect(201);
     await http().post(`/admin/episodes/${ep.body.data.id}/publish`, {}, admin).expect(200);
     await http().post(`/admin/series/${sid}/publish`, {}, admin).expect(422); // pas de licence
+
+    // Modifier un épisode se voit aussitôt dans la vitrine ; un prix imposé par la marque l'emporte.
+    const pacte = await owner.series.findUniqueOrThrow({ where: { slug: 'le-pacte-de-ngor' }, include: { episodes: { where: { number: 8 } } } });
+    const ep8 = pacte.episodes[0];
+    await http().patch(`/admin/episodes/${ep8.id}`, { titleFr: 'Titre corrigé', priceCoinsOverride: 30 }, admin).expect(200);
+    type Shown = { number: number; title: string; priceCoins: number; isFree: boolean };
+    const shown = async (): Promise<Shown | undefined> => {
+      const res = await http().get('/storefront/series/le-pacte-de-ngor').expect(200);
+      return (res.body as { data: { episodes: Shown[] } }).data.episodes.find((e) => e.number === 8);
+    };
+    expect(await shown()).toMatchObject({ title: 'Titre corrigé', priceCoins: 30, isFree: false });
+    await http().put(`/admin/storefront/series/${pacte.id}`, { status: 'LIVE', episodePriceCoinsOverride: 12 }, admin).expect(200);
+    expect((await shown())?.priceCoins).toBe(12);
+    await http().put(`/admin/storefront/series/${pacte.id}`, { status: 'LIVE', episodePriceCoinsOverride: null }, admin).expect(200);
+    await http().patch(`/admin/episodes/${ep8.id}`, { titleFr: null, priceCoinsOverride: null }, admin).expect(200);
+    expect((await shown())?.priceCoins).toBe(15);
 
     // Import en lot : essai à blanc, import réel, puis rejeu sans effet (idempotence).
     const csv = [

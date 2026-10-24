@@ -37,6 +37,7 @@ const CONFIG = {
     otpTtlSeconds: 300,
     otpLength: 6,
     otpMaxAttempts: 5,
+    testPhones: { '+221700000001': '111111' },
     argon2: { memoryCost: 4096, timeCost: 2 },
   },
   app: { frontendUrl: 'https://gaatshort.com' },
@@ -102,6 +103,17 @@ describe('AuthService.requestChallenge', () => {
     await service.requestChallenge({ channel: 'PHONE_OTP', identifier: '+221771234567' });
 
     expect(sendSms).toHaveBeenCalledWith(expect.objectContaining({ to: '+221771234567' }));
+  });
+
+  it('numéro de test : code fixe, aucun SMS, empreinte du code fixe enregistrée', async () => {
+    const sendSms = jest.fn(async () => ({ providerId: 'sms-1' }));
+    const create = jest.fn(async (_args: { data: { secretHash: string } }) => undefined);
+    const service = buildService({ prismaClient: { authChallenge: { create } }, sms: { send: sendSms } });
+
+    await expect(service.requestChallenge({ channel: 'PHONE_OTP', identifier: '+221700000001' })).resolves.toMatchObject({ sent: true });
+
+    expect(sendSms).not.toHaveBeenCalled();
+    expect(create.mock.calls[0]?.[0].data.secretHash).toBe(hasher().hash('111111'));
   });
 
   it('envoie un OTP par e-mail pour le canal EMAIL_OTP', async () => {

@@ -66,9 +66,12 @@ export class AuthService {
     const isMagicLink = params.channel === 'EMAIL_MAGIC_LINK';
     const ttl = isMagicLink ? this.config.auth.magicLinkTtlSeconds : this.config.auth.otpTtlSeconds;
 
+    // Numéro de test (recette, relecture des stores) : code fixe, aucun SMS. Le code suit
+    // ensuite exactement le même chemin (empreinte, expiration, nombre d'essais).
+    const testCode = params.channel === 'PHONE_OTP' ? this.config.auth.testPhones[identifier] : undefined;
     const secret = isMagicLink
       ? this.hasher.generate(32)
-      : this.hasher.generateNumericCode(this.config.auth.otpLength);
+      : (testCode ?? this.hasher.generateNumericCode(this.config.auth.otpLength));
 
     // `tenantId` est injecté par l'extension Prisma tenant-scopée.
     await this.prisma.client.authChallenge.create({
@@ -83,7 +86,9 @@ export class AuthService {
       } as never,
     });
 
-    if (params.channel === 'PHONE_OTP') {
+    if (testCode) {
+      this.logger.log(`Numéro de test ${identifier.slice(0, 7)}… : code fixe, SMS non envoyé`);
+    } else if (params.channel === 'PHONE_OTP') {
       await this.sms.send({
         to: identifier,
         body: `Gaatshort : votre code est ${secret} (valable ${Math.round(ttl / 60)} min).`,

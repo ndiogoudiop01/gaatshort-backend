@@ -79,18 +79,23 @@ export class MediaService {
     const asset = await this.prisma.client.mediaAsset.create({
       data: { kind: 'VIDEO', provider: this.video.name, providerRef, status: 'PROCESSING', createdBy: actor.userId },
     });
-    await this.prisma.client.episode.update({ where: { id: episodeId }, data: { videoAssetId: asset.id, durationSeconds: null } });
-    if (previousAssetId) {
+    const previous = previousAssetId ? await this.prisma.client.mediaAsset.findUnique({ where: { id: previousAssetId } }) : null;
+    const episode = await this.prisma.client.episode.findUnique({ where: { id: episodeId }, select: { thumbnailUrl: true } });
+    // La miniature venue de l'ANCIENNE vidéo est retirée (la nouvelle la remplacera une fois
+    // encodée) ; une miniature posée à la main dans le back-office est conservée.
+    const staleThumbnail = !!previous?.thumbnailUrl && episode?.thumbnailUrl === previous.thumbnailUrl;
+    await this.prisma.client.episode.update({
+      where: { id: episodeId },
+      data: { videoAssetId: asset.id, durationSeconds: null, ...(staleThumbnail ? { thumbnailUrl: null } : {}) },
+    });
+    if (previous) {
       // L'ancienne vidéo est détachée ; on la supprime chez le fournisseur sans bloquer.
-      const previous = await this.prisma.client.mediaAsset.findUnique({ where: { id: previousAssetId } });
-      if (previous) {
-        this.video.deleteVideo(previous.providerRef).catch((e: unknown) =>
-          this.logger.warn(`Suppression de l'ancienne vidéo ${previous.providerRef} impossible : ${String(e)}`),
-        );
-      }
+      this.video.deleteVideo(previous.providerRef).catch((e: unknown) =>
+        this.logger.warn(`Suppression de l'ancienne vidéo ${previous.providerRef} impossible : ${String(e)}`),
+      );
     }
     await this.prisma.client.auditLog.create({
-      data: { actorId: actor.userId, action: 'media.video.attached', resourceType: 'episode', resourceId: episodeId, after: { assetId: asset.id } } as never,
+      data: { actorId: actor.userId, action: 'media.video.attached', resourceType: 'episode', resourceId: episodeId, after: { assetId: asset.id, replaced: previousAssetId } } as never,
     });
     return asset;
   }
