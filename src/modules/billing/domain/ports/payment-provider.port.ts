@@ -31,4 +31,9 @@ export interface PaymentProviderPort {
   verifyNotification(body: Record<string, unknown>): VerifiedNotification;
   /** Pilote factice uniquement : signe une notification simulée. */
   signSimulation?(reference: string, outcome: 'PAID' | 'CANCELLED', amountMinor: number): string;
+  /**
+   * Pilote factice uniquement : adresse de retour après la page simulée, lue dans la requête
+   * de la page et VÉRIFIÉE (signée à la création) — jamais une redirection ouverte.
+   */
+  simulatedReturnUrl?(reference: string, outcome: 'PAID' | 'CANCELLED', query: Record<string, unknown>): string | null;
 }
