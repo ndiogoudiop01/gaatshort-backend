@@ -81,6 +81,14 @@ export const envSchema = z.object({
   OTP_TTL_SECONDS: z.coerce.number().int().default(300),
   OTP_MAX_ATTEMPTS: z.coerce.number().int().default(5),
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+  /**
+   * Numéros de TEST à code fixe (recette, démonstration, relecture des stores) :
+   * `+221700000001:111111,+221700000002:222222`. Aucun SMS n'est envoyé pour eux ; le code
+   * reste soumis à l'expiration et au nombre d'essais. Refusés en production sauf
+   * AUTH_TEST_PHONES_IN_PRODUCTION=true (comptes de relecture Apple / Google).
+   */
+  AUTH_TEST_PHONES: optional(z.string()),
+  AUTH_TEST_PHONES_IN_PRODUCTION: bool(false),
   ARGON2_MEMORY_COST: z.coerce.number().int().default(19456),
   ARGON2_TIME_COST: z.coerce.number().int().default(2),
 
@@ -154,6 +162,17 @@ export const envSchema = z.object({
   if (env.PAYMENT_DRIVER === 'paytech') {
     for (const k of ['PAYTECH_API_KEY', 'PAYTECH_API_SECRET'] as const) need(k, 'PAYMENT_DRIVER=paytech');
   }
+  if (env.AUTH_TEST_PHONES) {
+    const entries = parseTestPhones(env.AUTH_TEST_PHONES);
+    if (!entries) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['AUTH_TEST_PHONES'], message: 'format attendu : +221700000001:111111,+221700000002:222222' });
+    } else if (Object.values(entries).some((code) => code.length !== env.OTP_LENGTH)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['AUTH_TEST_PHONES'], message: `chaque code doit compter OTP_LENGTH (${env.OTP_LENGTH}) chiffres` });
+    }
+    if (env.NODE_ENV === 'production' && !env.AUTH_TEST_PHONES_IN_PRODUCTION) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['AUTH_TEST_PHONES'], message: 'interdit en production sans AUTH_TEST_PHONES_IN_PRODUCTION=true' });
+    }
+  }
   // Les pilotes factices n'ont rien à faire en production : on refuse de démarrer.
   if (env.NODE_ENV === 'production') {
     if (env.VIDEO_DRIVER === 'fake') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['VIDEO_DRIVER'], message: 'fake interdit en production' });
@@ -162,6 +181,18 @@ export const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** `+221700000001:111111,…` → { '+221700000001': '111111' } ; `null` si une entrée est mal formée. */
+export function parseTestPhones(value: string | undefined): Record<string, string> | null {
+  if (!value) return {};
+  const out: Record<string, string> = {};
+  for (const entry of csv(value)) {
+    const m = /^(\+[1-9]\d{7,14}):(\d{4,8})$/.exec(entry);
+    if (!m) return null;
+    out[m[1]] = m[2];
+  }
+  return out;
+}
 
 export function validateEnv(raw: Record<string, unknown>): Env {
   const parsed = envSchema.safeParse(raw);

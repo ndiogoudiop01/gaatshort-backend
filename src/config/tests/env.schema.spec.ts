@@ -1,4 +1,4 @@
-import { validateEnv } from '../env.schema';
+import { parseTestPhones, validateEnv } from '../env.schema';
 
 /** Jeu minimal de variables SANS défaut — les seules exigées par le schéma. */
 function baseEnv(overrides: Record<string, string> = {}): Record<string, string> {
@@ -127,5 +127,28 @@ describe('Vidéo et paiement', () => {
 
   it('les pilotes factices sont interdits en production', () => {
     expect(() => validateEnv(baseEnv({ NODE_ENV: 'production' }))).toThrow(/fake interdit en production/);
+  });
+});
+
+describe('validateEnv — numéros de test (AUTH_TEST_PHONES)', () => {
+  const PHONES = '+221700000001:111111, +221700000002:222222,+221700000003:333333';
+
+  it('lit la liste numéro:code', () => {
+    expect(parseTestPhones(PHONES)).toEqual({ '+221700000001': '111111', '+221700000002': '222222', '+221700000003': '333333' });
+    expect(parseTestPhones(undefined)).toEqual({});
+    expect(parseTestPhones('221700000001:111111')).toBeNull();
+    expect(parseTestPhones('+221700000001')).toBeNull();
+  });
+
+  it('accepté hors production, refusé en production sauf autorisation explicite', () => {
+    expect(validateEnv(baseEnv({ AUTH_TEST_PHONES: PHONES })).AUTH_TEST_PHONES).toBe(PHONES);
+    expect(() => validateEnv(baseEnv({ AUTH_TEST_PHONES: PHONES, NODE_ENV: 'production' }))).toThrow('AUTH_TEST_PHONES');
+    const prod = baseEnv({ AUTH_TEST_PHONES: PHONES, NODE_ENV: 'production', AUTH_TEST_PHONES_IN_PRODUCTION: 'true' });
+    expect(() => validateEnv(prod)).not.toThrow(/AUTH_TEST_PHONES/);
+  });
+
+  it('format invalide ou code de mauvaise longueur : démarrage refusé', () => {
+    expect(() => validateEnv(baseEnv({ AUTH_TEST_PHONES: 'nimporte' }))).toThrow('format attendu');
+    expect(() => validateEnv(baseEnv({ AUTH_TEST_PHONES: '+221700000001:1234' }))).toThrow('OTP_LENGTH');
   });
 });

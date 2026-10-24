@@ -1,4 +1,4 @@
-import type { Env } from './env.schema';
+import { parseTestPhones, type Env } from './env.schema';
 
 /**
  * Projection de l'environnement plat vers des namespaces métier typés.
@@ -49,6 +49,7 @@ export const buildConfiguration = (env: Env) =>
       otpTtlSeconds: env.OTP_TTL_SECONDS,
       otpMaxAttempts: env.OTP_MAX_ATTEMPTS,
       otpLength: env.OTP_LENGTH,
+      testPhones: parseTestPhones(env.AUTH_TEST_PHONES) ?? {},
       argon2: { memoryCost: env.ARGON2_MEMORY_COST, timeCost: env.ARGON2_TIME_COST },
     },
     storage: {
